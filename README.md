@@ -3,19 +3,28 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/Telos-Foundation/Sqrl/master/LICENSE)
 ![downloads](https://img.shields.io/github/downloads/Telos-Foundation/Sqrl/total.svg)
 
-[English](https://github.com/Telos-Foundation/Sqrl/blob/master/README.md) - [한글](https://github.com/Telos-Foundation/Sqrl/blob/master/README.kr.md) - [中文](https://github.com/Telos-Foundation/Sqrl/blob/master/README.zh.md) - [日本語](https://github.com/Telos-Foundation/Sqrl/blob/master/README.ja.md) - [Русский](https://github.com/Telos-Foundation/Sqrl/blob/master/README.ru.md)
+[English](https://github.com/Telos-Foundation/Sqrl/blob/master/README.md)
+
+[![Sqrl screenshot](https://raw.githubusercontent.com/Telos-Foundation/Sqrl/master/app/renderer/assets/images/sqrl.png)](https://raw.githubusercontent.com/Telos-Foundation/Sqrl/master/app/renderer/assets/images/sqrl.png)
 
 # Sqrl - TELOS Block Producer Voting & Wallet
 
-`Sqrl` is a limited-functionality release of a light wallet being designed for the TELOS blockchain. This application can be used to connect to a remote TELOS API endpoint to perform producer voting actions and a few basic wallet commands.
+`Sqrl` is a fully functional release of a light wallet being designed for the TELOS blockchain, and supports any EOSIO blockchain. This application can be used to connect to a remote EOSIO API endpoint to perform producer voting actions and common wallet commands.
 
-[![Sqrl screenshot](https://raw.githubusercontent.com/marlonwilliams/eos-voter/master/Sqrl.png)](https://raw.githubusercontent.com/marlonwilliams/eos-voter/master/Sqrl.png)
+[![Sqrl screenshot](https://raw.githubusercontent.com/Telos-Foundation/Sqrl/master/Sqrl.png)](https://raw.githubusercontent.com/Telos-Foundation/Sqrl/master/Sqrl.png)
 
 ### Features
 
-- **Block Producer Voting**: Select which block producers to support and cast your vote. Please note that the block producer voting UI is not a research tool; it is a simple interface that provides a secure way to vote.
+- **New User Account Creation**: Sqrl provides a simple wizard that allows new users to create their first TELOS account on their own.
+- **Works Across Chains**: Sqrl is the only wallet that can be used to manage any EOSIO blockchain in a single interface, such as TELOS or EOS Mainnet.
+- **New TLOS Key Generation**: You can use Sqrl to generate new TLOS public and private key pairs.
+- **Block Producer/Proxy Voting**: Select which block producers to support and cast your vote. You can also register/unregister your account as a Proxy. Please note that the block producer voting UI is not a research tool; it is a simple interface that provides a secure way to vote.
 - **Token Transfers**: Transfer TLOS or any other token you may have a balance for to another user or exchanges.
 - **CPU/Bandwidth Staking**: Stake your TLOS as either Bandwidth or CPU. This grants rights to resource usage on the network, in addition to conveying weight while voting for block producers.
+- **Buy/Sell RAM**: Use your TLOS tokens to buy or sell RAM at the then market price. RAM allows you to reserve or release storage space on the TELOS blockchain.
+- **Create Accounts**: Sqrl allows you to create new user accounts in TELOS and allocate RAM, Bandwidth or CPU.
+- **Simple Contact Management**: You can create a contact database for the TELOS accounts you interact with frequently, which simplifies the process of sending / receiving of TLOS on the network.
+- **Interact w/ Smart Contracts**: If you would like to interact with smart contracts directly, Sqrl allows you to lookup contracts and call methods defined in the contract's abi.
 - **Local Wallet**: Set a password while importing your private key to create a local wallet. Your key will be encrypted locally using this password. This password will be required each time you need to unlock the wallet.
 - **Temporary Usage**: If you prefer not to store your keys within the application, simply choose not to set a password. When the application quits, your key will be forgotten.
 
@@ -23,12 +32,11 @@
 
 ### Releases
 
-Current 0.5.0 release downloads:
+Current 0.5.2 release downloads:
 
-- [Windows Installer](https://github.com/Telos-Foundation/Sqrl/releases/download/v0.5.0/win-Sqrl-0.5.0.exe)
-- [macOS Package](https://github.com/Telos-Foundation/Sqrl/releases/download/v0.5.0/mac-Sqrl-0.5.0.dmg)
-- [Linux (deb)](https://github.com/Telos-Foundation/Sqrl/releases/download/v0.5.0/linux-Sqrl-0.5.0-amd64.deb)
-- [Linux (snap)](https://github.com/Telos-Foundation/Sqrl/releases/download/v0.5.0/linux-Sqrl-0.5.0-amd64.snap)
+- [Windows Installer](https://github.com/Telos-Foundation/Sqrl/releases/download/0.5.2/win-Sqrl-0.5.2.exe)
+- [macOS Package](https://github.com/Telos-Foundation/Sqrl/releases/download/0.5.2/mac-Sqrl-0.5.2.dmg)
+- [Linux (src)](https://github.com/Telos-Foundation/Sqrl/archive/0.5.2.tar.gz)
 
 The latest release will always be available on the releases page of this repository:
 
@@ -36,9 +44,9 @@ The latest release will always be available on the releases page of this reposit
 
 To determine which file you need, if you are a...
 
-- **MacOS User**: Download either the DMG (`Sqrl-***.dmg`) or ZIP (`Sqrl-***-mac.zip`) file.
+- **MacOS User**: Download the DMG (`Sqrl-***.dmg`) file.
 - **Windows User**: Download the EXE (`Sqrl-***.exe`) file.
-- **Linux User**: Download either the SNAP (`Sqrl-***-_amd64.snap`) or DEB (`Sqrl-***-_amd64.deb`) file
+- **Linux User**: Download the Source (`***-.tar.gz`) file.
 
 ### Security: Private Keys
 
