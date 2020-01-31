@@ -6,9 +6,6 @@ import { Button, Container, Grid, Header, Icon, Modal, Segment, Step } from 'sem
 import WalletPanelFormAccountRequest from '../../../../Wallet/Panel/Form/Account/Request';
 import WalletPanelModalAccountRequestBackup from './Request/Backup';
 import WalletPanelModalAccountRequestCode from './Request/Code';
-import WalletPanelModalAccountRequestImport from './Request/Import';
-
-const { ipcRenderer } = require('electron');
 
 class WalletPanelModalAccountRequest extends Component<Props> {
   state = {
@@ -22,13 +19,15 @@ class WalletPanelModalAccountRequest extends Component<Props> {
       accountName: '',
       active: '',
       password: '',
-      owner: ''
+      owner: '',
+      referredby: ''
     },
     validated: {
       accountName: false,
       active: false,
       owner: false,
-      keyBackup: false
+      keyBackup: false,
+      referredby: false
     },
   }
   onChange = (e, { name, valid, value }) => {
@@ -40,16 +39,56 @@ class WalletPanelModalAccountRequest extends Component<Props> {
       values,
       validated
     }, () => {
-      if (name === 'accountName' && value.length !== 0) {
+      if ( name === 'accountName' && value.length !== 0) {
         const { actions } = this.props;
         actions.checkAccountAvailability(value);
+      } else if ( name === 'referredby' && value.length !== 0) {
+        const { actions } = this.props;
+        actions.checkAccountExists(value);
       }
-      console.table(this.state);
     });
+  }
+  onBeforeClose = ()=> {
+    const {onClose, system} = this.props;
+    this.setState({
+      confirming: false,
+      keys: {
+        active: '',
+        owner: ''
+      },
+      stage: 1,
+      values: {
+        accountName: '',
+        active: '',
+        password: '',
+        owner: '',
+        referredby: ''
+      },
+      validated: {
+        accountName: false,
+        active: false,
+        owner: false,
+        keyBackup: false,
+        referredby: false
+      },
+    });
+    system.CREATEACCOUNT = null;
+    system.CREATEACCOUNT_LAST_ERROR = null;
+    onClose();
   }
   onConfirm = () => this.setState({ confirming: true });
   onCancel = () => this.setState({ confirming: false });
-  onStageSelect = (stage) => this.setState({ confirming: false, stage });
+  onStageSelect = (stage) => {
+    const {
+      system
+    } = this.props;
+    this.setState({ confirming: false, stage })
+    
+    if (stage < 3){
+      system.CREATEACCOUNT = null;
+      system.CREATEACCOUNT_LAST_ERROR = null;
+    };
+  }
   setPrivateKey = (type, publicKey, privateKey) => {
     const keys = { ...this.state.keys };
     keys[type] = {
@@ -64,9 +103,9 @@ class WalletPanelModalAccountRequest extends Component<Props> {
   render() {
     const {
       actions,
-      history,
-      onClose,
+      connection,
       open,
+      settings,
       system,
       t,
       trigger
@@ -90,6 +129,18 @@ class WalletPanelModalAccountRequest extends Component<Props> {
       isValid = false;
       error = 'account_name_not_available';
     }
+    if (values.accountName && values.accountName.length !== 12) {
+      isValid = false;
+      error = 'not_valid_account_name';
+    }
+    if (values.referredby
+      && values.referredby.length !== 0
+      && system.ACCOUNT_EXISTS === 'FAILURE'
+      && system.ACCOUNT_EXISTS_LAST_ACCOUNT === values.referredby
+    ) {
+      isValid = false;
+      error = 'invalid_referral_code';
+    }
 
     const shouldShowAccountNameWarning = values.accountName && values.accountName.length !== 12;
 
@@ -100,6 +151,7 @@ class WalletPanelModalAccountRequest extends Component<Props> {
         onChange={this.onChange}
         onSubmit={() => this.onStageSelect(2)}
         setPrivateKey={this.setPrivateKey}
+        settings={settings}
         shouldShowAccountNameWarning={shouldShowAccountNameWarning}
         values={values}
       />
@@ -123,22 +175,13 @@ class WalletPanelModalAccountRequest extends Component<Props> {
     if (stage === 3) {
       stageElement = (
         <WalletPanelModalAccountRequestCode
+          actions={actions}
+          connection={connection}
           keys={keys}
           onBack={() => this.onStageSelect(2)}
-          // onNext={() => this.onStageSelect(4)}
-          values={values}
-        />
-      );
-    }
-
-    if (stage === 4) {
-      stageElement = (
-        <WalletPanelModalAccountRequestImport
-          actions={actions}
-          history={history}
-          keys={keys}
-          onBack={() => this.onStageSelect(3)}
-          onClose={onClose}
+          onClose={() => this.onClose()}
+          settings={settings}
+          system={system}
           values={values}
         />
       );
@@ -150,13 +193,13 @@ class WalletPanelModalAccountRequest extends Component<Props> {
         closeIcon={false}
         closeOnDimmerClick={false}
         trigger={trigger}
-        onClose={onClose}
+        onClose={this.onBeforeClose}
         open={open}
         size="fullscreen"
       >
         <Header icon="users" content={t('wallet_account_request_title')} />
         <Modal.Content>
-          <Grid unstackable>
+          <Grid unstackable="true">
             <Grid.Row>
               <Grid.Column width={8}>
                 <Step.Group fluid vertical>
@@ -181,13 +224,6 @@ class WalletPanelModalAccountRequest extends Component<Props> {
                       <Step.Description>{t('wallet_account_request_step_request_desc')}</Step.Description>
                     </Step.Content>
                   </Step>
-                  {/* <Step active={stage === 4}>
-                    <Icon name="disk" />
-                    <Step.Content>
-                      <Step.Title>{t('wallet_account_request_step_import')}</Step.Title>
-                      <Step.Description>{t('wallet_account_request_step_import_desc')}</Step.Description>
-                    </Step.Content>
-                  </Step> */}
                 </Step.Group>
               </Grid.Column>
               <Grid.Column width={8}>
@@ -201,7 +237,7 @@ class WalletPanelModalAccountRequest extends Component<Props> {
         <Modal.Actions>
           <Container textAlign="center">
             <Button
-              onClick={onClose}
+              onClick={this.onBeforeClose}
             >
               <Icon name="x" /> {t('close')}
             </Button>

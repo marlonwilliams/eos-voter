@@ -2,46 +2,96 @@
 import React, { Component } from 'react';
 import { translate } from 'react-i18next';
 import { find } from 'lodash';
+import eos from '../../actions/helpers/eos';
 
-import { Container, Icon, Header, Message, Segment, Table } from 'semantic-ui-react';
+import { Button, Container, Icon, Header, Message, Popup, Segment, Table } from 'semantic-ui-react';
 
 import ToolsModalPermissionAuth from './Modal/Permissions/Auth';
 import WalletPanelLocked from '../Wallet/Panel/Locked';
+import EOSAccount from '../../utils/EOS/Account';
+import EOSContract from '../../utils/EOS/Contract';
 
-class ToolsPermissions extends Component<Props> {
-  getAuthorization(account, pubkey) {
-    if (account) {
-      // Find the matching permission
-      const permission = find(account.permissions, (perm) =>
-        find(perm.required_auth.keys, (key) => key.key === pubkey));
-      if (permission) {
-        // Return an authorization for this key
-        return {
-          actor: account.account_name,
-          permission: permission.perm_name
-        };
+class ToolsPermissions extends Component<Props> { 
+  constructor(props) {
+    super(props);
+    
+    this.state = Object.assign({}, {
+      linkAuthHistory: []
+    });
+  } 
+  componentDidMount() {
+    const {
+      actions,
+      connection,
+      settings
+    } = this.props;
+    actions.getAbi('eosio');
+
+    eos(connection).getActions(settings.account, -1, -100000).then((results) => {
+      if (results && results.actions) {
+        const linkAuthHistory = [...this.state.linkAuthHistory];
+        results.actions.map(action => {
+          if (action && action.action_trace && action.action_trace.act) {
+            const trace = action.action_trace.act;
+            if (trace.name == "linkauth") {
+              linkAuthHistory.push(trace.data);
+            }
+          }
+        });
+        this.setState({ linkAuthHistory });
       }
-    }
-    return undefined;
+    })
   }
-
+  unlinkAuth = (type, requirement) => {
+    const {
+      actions
+    } = this.props;
+    actions.unlinkauth(type);
+  }
+  isValidContract = (name) => {
+    const { contracts } = this.props;
+    return (
+      contracts[name]
+      && contracts[name] instanceof EOSContract
+    );
+  }
   render() {
     const {
       accounts,
       actions,
       blockExplorers,
+      contracts,
       keys,
       settings,
       system,
       t,
       validate,
       wallet,
-      wallets
+      connection
     } = this.props;
 
-    if (!wallets || !wallets.length) {
-      return false;
-    }
+    const {
+      linkAuthHistory
+    } = this.state;
+
+    // Ensure the contract is loaded and valid
+    let contract = null;
+    if (contracts && contracts.eosio && contracts.eosio.abi)
+      contract = new EOSContract(contracts.eosio.abi, 'eosio');
+
+    const contractActions = contract && 
+    contract.getActions().filter( (action) => {
+      return ['updateauth','deleteauth','linkauth',
+        'unlinkauth','canceldelay','init',
+        'onblock','onerror','setabi','setalimits',
+        'setpriv','setcode','setparams', 'setram',
+        'setramrate','updtrevision'].indexOf(action.name) === -1
+    }).map((action) => { 
+      return {
+        text: action.name,
+        value: action.type
+      }
+    });
 
     if (settings.walletMode !== 'watch' && !(keys && keys.key)) {
       return (
@@ -50,6 +100,7 @@ class ToolsPermissions extends Component<Props> {
           settings={settings}
           validate={validate}
           wallet={wallet}
+          connection={connection}
         />
       );
     }
@@ -57,8 +108,18 @@ class ToolsPermissions extends Component<Props> {
     const account = accounts[settings.account];
     if (!account) return false;
 
-    const { pubkey } = keys;
-    const authorization = this.getAuthorization(account, pubkey);
+    let { pubkey } = wallet;
+    if (!pubkey) {
+      if (keys && keys.pubkey) {
+        ({ pubkey } = keys);
+      }
+    }
+    let authorization = new EOSAccount(account).getAuthorization(pubkey, true);
+    if (settings.walletMode === 'watch') {
+      authorization = {
+        perm_name: settings.authorization
+      };
+    }
 
     return (
       <Segment basic>
@@ -76,10 +137,12 @@ class ToolsPermissions extends Component<Props> {
                   icon: 'circle plus',
                   size: 'small'
                 }}
+                contractActions={contractActions}
+                linkAuthHistory={linkAuthHistory}
                 onClose={this.onClose}
-                open
                 settings={settings}
                 system={system}
+                connection={connection}
               />
             )
             : false
@@ -127,29 +190,46 @@ class ToolsPermissions extends Component<Props> {
           >
             {(
               !authorization
-              || (data.perm_name === 'owner' && authorization.permission === 'owner')
-              || (data.perm_name !== 'owner')
+              || (data.perm_name === 'owner' && authorization.perm_name !== 'owner')
+              || (data.perm_name === 'active' && !(['active', 'owner'].includes(authorization.perm_name)))
             )
               ? (
+                <Popup
+                  content={t('tools_modal_permissions_auth_edit_button_disabled')}
+                  inverted
+                  position="top center"
+                  trigger={(
+                    <Button
+                      content={t('tools_modal_permissions_auth_edit_button')}
+                      floated="right"
+                      icon="pencil"
+                      size="small"
+                    />
+                  )}
+                />
+              )
+              : (
                 <ToolsModalPermissionAuth
                   actions={actions}
                   auth={data}
                   blockExplorers={blockExplorers}
                   button={{
-                    color: 'grey',
+                    color: 'purple',
                     content: t('tools_modal_permissions_auth_edit_button'),
                     fluid: false,
                     floated: 'right',
                     icon: 'pencil',
                     size: 'small'
                   }}
+                  contractActions={contractActions}
+                  linkAuthHistory={linkAuthHistory}
                   onClose={this.onClose}
                   pubkey={pubkey}
                   settings={settings}
                   system={system}
+                  connection={connection}
                 />
               )
-              : false
             }
             <Header floated="left" size="medium">
               <Icon name="lock" />
@@ -187,6 +267,21 @@ class ToolsPermissions extends Component<Props> {
                   <Table.Row key={`${data.perm_name}-${permission.key}`}>
                     <Table.Cell collapsing textAlign="right">{permission.weight}</Table.Cell>
                     <Table.Cell>{permission.key}</Table.Cell>
+                  </Table.Row>
+                ))}
+                {linkAuthHistory.filter((perm) => {return perm.requirement == data.perm_name})
+                  .map((linkauth) => (
+                  <Table.Row key={`${linkauth.type}-${linkauth.requirement}`}>
+                    <Table.Cell collapsing textAlign="right">
+                      {/*
+                      <Button 
+                        floated="right"
+                        icon="delete"
+                        size="small"
+                        onClick={() => this.unlinkAuth(linkauth.type, linkauth.requirement)}
+                      />*/}
+                    </Table.Cell>
+                    <Table.Cell>{linkauth.type}</Table.Cell>
                   </Table.Row>
                 ))}
               </Table.Body>

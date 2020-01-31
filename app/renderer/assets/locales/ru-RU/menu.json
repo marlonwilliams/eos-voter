@@ -1,5 +1,6 @@
 {
-  "producer_voting": "Голосование за Производителей Блоков",
+  "exchange": "REX рынок",
+  "producer_voting": "Голосования",
   "wallet": "Кошелёк",
-  "tools": "Tools"
+  "tools": "Инструменты"
 }

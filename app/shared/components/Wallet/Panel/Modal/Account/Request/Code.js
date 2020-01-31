@@ -2,80 +2,149 @@
 import React, { Component } from 'react';
 import { translate } from 'react-i18next';
 
-import { Button, Container, Divider, Form, Grid, Header, Icon, Input, Modal, Segment, Step, TextArea } from 'semantic-ui-react';
+import { Button, Container, Divider, Form, Header, Message, Segment } from 'semantic-ui-react';
+import ReactJson from 'react-json-view';
+import macaddress from 'macaddress';
 
 const { clipboard } = require('electron');
 
 class WalletPanelModalAccountRequestCode extends Component<Props> {
   constructor(props) {
     super(props);
-    const code = btoa(JSON.stringify({
-      n: props.values.accountName,
-      o: props.values.owner,
-      a: props.values.active,
-      t: new Date().getTime()
-    }));
     this.state = {
-      code,
-      copied: false
+      copied: false,
+      accountCreated: false
     };
   }
-  copy = () => {
-    const { code } = this.state;
-    clipboard.writeText(code);
-    this.setState({ copied: true });
+  componentWillReceiveProps(nextProps){
+    if (nextProps && nextProps.system.CREATEACCOUNT === 'SUCCESS'){
+      this.setState({accountCreated: true});
+    }
+  }
+  createAccount = () => {
+    const { 
+      actions,
+      connection,
+      settings,
+      values 
+    } = this.props;
+    
+    if (settings.freeAccountCreated !== true){
+      macaddress.all(function (err, all) {
+        const macaddresses = [];
+        const map = new Map();
+        let keys = Object.keys(all);
+        for(let index=0;index<keys.length;index++)
+        {
+          const mac = all[keys[index]].mac;
+          if(!map.has(mac) && mac != '00:00:00:00:00:00'){
+            map.set(mac, true);
+            macaddresses.push(mac);
+          }
+        }
+
+        if (macaddresses.length > 0)
+          {actions.createFreeAccount(values.accountName, values.owner, values.active, macaddresses, values.referredby);}
+      });
+    }
   }
   render() {
     const {
-      keys,
+      actions,
       onBack,
-      onNext,
       t,
-      values,
+      settings,
+      system,
+      values
     } = this.props;
     const {
-      code,
-      copied
+      accountCreated
     } = this.state;
+    const confirmInfo = {
+      account:values.accountName, 
+      ownerKey:values.owner, 
+      activeKey: values.active
+    };
+    if (system.CREATEACCOUNT === 'SUCCESS' && settings.account !== values.accountName){
+      actions.setSetting('account', values.accountName); // this will pre-pop field when user goes to 'Lookup account' section
+    }
+
+    let lastErrorMessage = '';
+    if (system.CREATEACCOUNT === 'FAILURE' && system[`CREATEACCOUNT_LAST_ERROR`]) {
+      if (system[`CREATEACCOUNT_LAST_ERROR`].error)
+        lastErrorMessage = system.CREATEACCOUNT_LAST_ERROR.error.code + ':' + system.CREATEACCOUNT_LAST_ERROR.error.what;
+      else if (system.CREATEACCOUNT_LAST_ERROR.message) {
+        lastErrorMessage = system.CREATEACCOUNT_LAST_ERROR.message;
+      } else {
+        lastErrorMessage = system.CREATEACCOUNT_LAST_ERROR;
+      }
+    }
+
     return (
-      <Segment>
+      <Segment loading={system.CREATEACCOUNT === 'PENDING'}>
         <Header>
-          {t('wallet_account_request_code_header')}
+          {t('wallet_account_request_account_header')}
           <Header.Subheader>
-            {t('wallet_account_request_code_subheader')}
+            {t('wallet_account_request_account_subheader')}
           </Header.Subheader>
         </Header>
-        <Form>
-          <Form.TextArea
-            rows={6}
-            value={code}
+        
+        <Segment basic>
+          <ReactJson
+            displayDataTypes={false}
+            displayObjectSize={false}
+            iconStyle="square"
+            name={null}
+            src={confirmInfo}
+            style={{ padding: '1em', fontSize: '8px' }}
+            theme="harmonic"
           />
+        </Segment>
+
+        <Form>
           <Container textAlign="center">
             <Form.Button
+              disabled={accountCreated}
               color="purple"
-              content={t('copy_to_clipboard')}
-              onClick={this.copy}
+              content={t('wallet_account_request_form_create_account')}
+              onClick={this.createAccount}
             />
           </Container>
         </Form>
         <Divider hidden />
-        <Button
-          content={t('back')}
-          onClick={onBack}
-          size="small"
-        />
-        {(onNext)
+          {(system.CREATEACCOUNT === 'FAILURE')
           ? (
-            <Button
-              color="blue"
-              content={t('next')}
-              disabled={!copied}
-              onClick={onNext}
-              floated="right"
+            <Message
+              content={t('wallet_account_request_account_failed')}
+              icon="info circle"
+              warning
             />
-          )
-          : false
-        }
+          ) : ''}
+          {(lastErrorMessage && lastErrorMessage.length > 0)
+          ? (
+            <Message
+              content={lastErrorMessage}
+              icon="info circle"
+              error
+            />
+          ) : ''}
+          {(system.CREATEACCOUNT === 'SUCCESS')
+          ? (
+            <Message
+              content={t('wallet_account_request_account_succeeded')}
+              icon="info circle"
+              warning
+            />
+          ) : ''}
+          {(system.CREATEACCOUNT !== 'SUCCESS')
+          ? (
+          <Button
+            content={t('back')}
+            onClick={onBack}
+            size="small"
+          />
+          ) : ''
+          }
       </Segment>
     );
   }

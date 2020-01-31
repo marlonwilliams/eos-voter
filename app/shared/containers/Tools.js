@@ -11,15 +11,19 @@ import { Menu, Tab } from 'semantic-ui-react';
 import ContractInterface from './Contract/Interface';
 
 import Tools from '../components/Tools';
+import ToolsBlockchains from '../components/Tools/Blockchains';
 import ToolsCreateAccount from '../components/Tools/CreateAccount';
 import ToolsContacts from '../components/Tools/Contacts';
 import ToolsCustomTokens from '../components/Tools/CustomTokens';
+import ToolsDelegations from '../components/Tools/Delegations';
+//import ToolsGovernanceProposals from '../components/Tools/Governance/Proposals';
 import ToolsKeys from '../components/Tools/Keys';
 import ToolsKeysValidator from '../components/Tools/Keys/Validator';
 import ToolsStateChain from '../components/Tools/State/Chain';
 import ToolsStateGlobals from '../components/Tools/State/Globals';
 import ToolsStateWallet from '../components/Tools/State/Wallet';
 import ToolsPermissions from '../components/Tools/Permissions';
+import ToolsPermissionsApp from '../components/Tools/PermissionsApp';
 import ToolsProxy from '../components/Tools/Proxy';
 import ToolsWallets from '../components/Tools/Wallets';
 import ToolsReset from '../components/Tools/Reset';
@@ -29,14 +33,21 @@ import * as ContractsActions from '../actions/contracts';
 import * as CreateAccountActions from '../actions/createaccount';
 import * as CustomTokensActions from '../actions/customtokens';
 import * as GlobalsActions from '../actions/globals';
+//import * as ProposalsActions from '../actions/governance/proposals';
 import * as RegProxyActions from '../actions/system/regproxy';
+import * as RegproxyinfoActions from '../actions/system/community/regproxyinfo';
 import * as SettingsActions from '../actions/settings';
+import * as StakeActions from '../actions/stake';
 import * as SystemStateActions from '../actions/system/systemstate';
+import * as TableActions from '../actions/table';
 import * as TransactionActions from '../actions/transaction';
 import * as UpdateAuthActions from '../actions/system/updateauth';
 import * as UnregProxyActions from '../actions/system/unregproxy';
 import * as WalletActions from '../actions/wallet';
 import * as WalletsActions from '../actions/wallets';
+import * as ValidateActions from '../actions/validate';
+import * as WAPIIAuthorizedApps from '../../wallet-integration/actions/authorizedApps';
+import * as WAPIIPermissions from '../../wallet-integration/actions/permissions';
 
 const paneMapping = [
   {
@@ -44,6 +55,16 @@ const paneMapping = [
     modes: ['cold', 'hot', 'watch', 'skip'],
     name: 'index',
   },
+  /*{
+    header: true,
+    modes: ['hot', 'watch', 'skip'],
+    name: 'governance',
+  },
+  {
+    element: ToolsGovernanceProposals,
+    modes: ['hot', 'watch', 'skip'],
+    name: 'governance_proposals_test'
+  },*/
   {
     header: true,
     modes: ['cold', 'hot', 'watch', 'skip'],
@@ -53,6 +74,21 @@ const paneMapping = [
     element: ToolsCustomTokens,
     modes: ['hot', 'watch'],
     name: 'customtokens',
+  },
+  {
+    element: ToolsPermissionsApp,
+    modes: ['hot', 'watch'],
+    name: 'permissions_app',
+  },
+  {
+    element: ToolsBlockchains,
+    modes: ['hot', 'watch'],
+    name: 'blockchains',
+  },
+  {
+    element: ToolsDelegations,
+    modes: ['hot', 'watch', 'skip'],
+    name: 'delegations'
   },
   {
     element: ToolsWallets,
@@ -105,9 +141,9 @@ const paneMapping = [
     name: 'state',
   },
   {
-    element: ToolsStateWallet,
-    modes: ['cold', 'hot', 'skip', 'watch'],
-    name: 'state',
+    element: ToolsStateChain,
+    modes: ['hot', 'watch'],
+    name: 'state_chain',
   },
   {
     element: ToolsStateGlobals,
@@ -115,9 +151,9 @@ const paneMapping = [
     name: 'state_globals',
   },
   {
-    element: ToolsStateChain,
-    modes: ['hot', 'watch'],
-    name: 'state_chain',
+    element: ToolsStateWallet,
+    modes: ['cold', 'hot', 'skip', 'watch'],
+    name: 'state',
   },
   {
     header: true,
@@ -129,7 +165,7 @@ const paneMapping = [
     modes: ['cold', 'hot', 'skip', 'watch'],
     name: 'reset',
   },
-]
+];
 
 class ToolsContainer extends Component<Props> {
   getPanes() {
@@ -147,10 +183,10 @@ class ToolsContainer extends Component<Props> {
           || (skipImport && pane.modes.includes('skip'))
         );
       })
-      .map((pane) => {
+      .map((pane, paneIndex) => {
         if (pane.header) {
           return {
-            menuItem: <Menu.Header className="ui">{t(`tools_menu_${pane.name}_header`)}</Menu.Header>
+            menuItem: <Menu.Header key={paneIndex} className="ui">{t(`tools_menu_${pane.name}_header`)}</Menu.Header>
           };
         }
         return {
@@ -168,7 +204,11 @@ class ToolsContainer extends Component<Props> {
       settings,
       t
     } = this.props;
-    const panes = this.getPanes();
+    let panes = {};
+    if (settings.blockchain.tokenSymbol === 'TLOS')
+      panes = this.getPanes().filter((p)=> {return p.menuItem != 'Register Voting Proxy'});
+    else 
+      panes = this.getPanes();
     return (
       <Tab
         menu={{
@@ -193,12 +233,15 @@ function mapStateToProps(state) {
     chain: state.chain,
     contracts: state.contracts,
     customtokens: state.customtokens,
+    tables: state.tables,
     globals: state.globals,
     keys: state.keys,
+    //proposals: state.proposals,
     settings: state.settings,
     system: state.system,
     transaction: state.transaction,
     validate: state.validate,
+    wapii: state.wapii,
     wallet: state.wallet,
     wallets: state.wallets,
   };
@@ -212,14 +255,21 @@ function mapDispatchToProps(dispatch) {
       ...CreateAccountActions,
       ...CustomTokensActions,
       ...GlobalsActions,
+      //...ProposalsActions,
       ...RegProxyActions,
       ...SettingsActions,
+      ...StakeActions,
       ...SystemStateActions,
+      ...RegproxyinfoActions,
+      ...TableActions,
       ...TransactionActions,
       ...UpdateAuthActions,
       ...UnregProxyActions,
       ...WalletActions,
       ...WalletsActions,
+      ...ValidateActions,
+      ...WAPIIPermissions,
+      ...WAPIIAuthorizedApps
     }, dispatch)
   };
 }

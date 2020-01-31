@@ -1,15 +1,21 @@
 // @flow
 import React, { Component } from 'react';
-import { Divider, Header, Grid, Loader, Segment, Visibility } from 'semantic-ui-react';
+import { Tab, Grid, Divider } from 'semantic-ui-react';
 import { translate } from 'react-i18next';
 
+import BlockProducers from './Producers/BlockProducers';
+import ProducersProxy from './Producers/Proxy';
+import GovernanceArbitration from './Producers/Arbitration';
+import GovernanceProposals from './Producers/Proposals';
+import GovernanceRatifyAmend from './Producers/RatifyAmend';
+import GovernanceRatify from './Producers/Ratify';
+import GovernanceTFVoting from './Producers/TFVoting';
+import ProducersVotingPreview from './Producers/BlockProducers/Modal/Preview';
+import Proxies from './Producers/Proxies';
+import ProducersSelector from './Producers/BlockProducers/Selector';
+import GovernanceButtonRefreshVote from './Producers/RefreshVote';
 import SidebarAccount from '../containers/Sidebar/Account';
 import WalletPanel from './Wallet/Panel';
-
-import ProducersSelector from './Producers/Selector';
-import ProducersTable from './Producers/Table';
-import ProducersVotingPreview from './Producers/Modal/Preview';
-import ProducersProxy from './Producers/Proxy';
 
 type Props = {
   actions: {
@@ -20,6 +26,10 @@ type Props = {
     voteproducers: () => void
   },
   accounts: {},
+  arbitration: {
+    arbitrators: {},
+    leaderboards: {}
+  },
   balances: {},
   blockExplorers: {},
   globals: {},
@@ -27,6 +37,15 @@ type Props = {
   producers: {
     lastTransaction: {},
     selected: []
+  },
+  proposals: {
+    list: {},
+    votes: {}
+  },
+  tfvoting: {
+    tfvtbalances: {},
+    tfvtboardmembers: {},
+    tfvtnominees: {}
   },
   settings: {},
   system: {},
@@ -41,7 +60,7 @@ class Producers extends Component<Props> {
   constructor(props) {
     super(props);
     this.state = {
-      amount: 40,
+      amount: 50,
       lastError: false,
       lastTransaction: {},
       previewing: false,
@@ -50,13 +69,11 @@ class Producers extends Component<Props> {
       selected_account: false,
       selected_loaded: false,
       submitting: false,
+      activeTabIndex: 0
     };
   }
 
-  componentDidMount() {
-    this.tick();
-    this.interval = setInterval(this.tick.bind(this), 60000);
-  }
+  handleTabChange = (e, { activeIndex }) => this.setState({ activeTabIndex: activeIndex })
 
   componentWillReceiveProps(nextProps) {
     const { validate } = this.props;
@@ -68,7 +85,6 @@ class Producers extends Component<Props> {
       && nextValidate.NODE === 'SUCCESS'
     ) {
       this.props.actions.getGlobals();
-      this.tick();
     }
     // Update state when the transaction has gone through
     if (
@@ -113,28 +129,62 @@ class Producers extends Component<Props> {
     }
   }
 
-  componentWillUnmount() {
-    clearInterval(this.interval);
+
+  addProxy = (proxyAccout) => {
+    this.setState({
+      addProxy: proxyAccout
+    });
   }
 
-  loadMore = () => this.setState({ amount: this.state.amount + 20 });
+  removeProxy = () => {
+    this.setState({
+      removeProxy: true
+    });
+  }
 
-  resetDisplayAmount = () => this.setState({ amount: 40 });
-  isQuerying = (querying) => this.setState({ querying });
+  onClose = () => {
+    this.setState({
+      addProxy: false,
+      removeProxy: false
+    });
+  }
 
-  tick() {
-    const {
-      actions,
-      validate
-    } = this.props;
-    const {
-      getProducers,
-      getProducersInfo
-    } = actions;
-    if (validate.NODE) {
-      getProducers();
-      getProducersInfo();
-    }
+  addProposal = () => {
+    this.setState({
+      addProposal: true
+    });
+  }
+
+  removeProposal = () => {
+    this.setState({
+      removeProposal: true
+    });
+  }
+
+  onCloseProposal = () => {
+    this.setState({
+      addProposal: false,
+      removeProposal: false
+    });
+  }
+
+  addArbCandidate = () => {
+    this.setState({
+      addArbCandidate: true
+    });
+  }
+
+  removeArbCandidate = () => {
+    this.setState({
+      removeArbCandidate: true
+    });
+  }
+
+  onCloseArbCandidate = () => {
+    this.setState({
+      addArbCandidate: false,
+      removeArbCandidate: false
+    });
   }
 
   addProducer = (producer) => {
@@ -173,8 +223,17 @@ class Producers extends Component<Props> {
     const {
       selected
     } = this.state;
+    const { 
+      producers
+    } = this.props;
     clearSystemState();
-    voteproducers(selected);
+    //make sure selected producers weren't kicked
+    //while user was in the research process
+    const compliantProducers = producers.list
+      .filter((p) => {return selected.indexOf(p.owner) !== -1})
+      .map((s) => {return s.owner});
+
+    voteproducers(compliantProducers);
     this.setState({
       lastError: false, // Reset the last error
       lastTransaction: {}, // Reset the last transaction
@@ -186,6 +245,7 @@ class Producers extends Component<Props> {
     const {
       actions,
       accounts,
+      actionHistories,
       balances,
       blockExplorers,
       connection,
@@ -196,16 +256,18 @@ class Producers extends Component<Props> {
       settings,
       system,
       t,
+      tables,
       transaction,
       validate,
       wallet
     } = this.props;
     const {
-      amount,
+      activeTabIndex,
+      addProxy,
       lastError,
       lastTransaction,
       previewing,
-      querying,
+      removeProxy,
       selected,
       submitting
     } = this.state;
@@ -223,25 +285,59 @@ class Producers extends Component<Props> {
         transaction={transaction}
         validate={validate}
         wallet={wallet}
+        connection={connection}
       />
     )];
     const account = accounts[settings.account];
-    const isMainnet = (connection && connection.chain === 'eos-mainnet');
+    const isMainnet = (connection && connection.chain && connection.chain.toLowerCase().indexOf('mainnet') !== -1);
     const isProxying = !!(account && account.voter_info && account.voter_info.proxy);
     const isValidUser = !!((keys && keys.key && settings.walletMode !== 'wait') || settings.walletMode === 'watch');
     const modified = (selected.sort().toString() !== producers.selected.sort().toString());
+    const currentProxy = (account && account.voter_info && account.voter_info.proxy);
+
+    const columnWidth = (activeTabIndex == 0 || activeTabIndex == 1) ? 11 : 16;
+    
     if (isValidUser && settings.walletMode !== 'wait') {
       sidebar = (
         <React.Fragment>
+          <div>
+            <GovernanceButtonRefreshVote
+              account={account}
+              accounts={accounts}
+              actions={actions}
+              actionHistories={actionHistories}
+              addProxy={addProxy}
+              balances={balances}
+              blockExplorers={blockExplorers}
+              currentProxy={currentProxy}
+              keys={keys}
+              isProxying={isProxying}
+              isValidUser={isValidUser}
+              onClose={this.onClose}
+              producers={producers}
+              removeProxy={removeProxy}
+              settings={settings}
+              system={system}
+              tables={tables}
+              validate={validate}
+            />
+            <Divider hidden />
+          </div>
           <ProducersProxy
             account={account}
+            accounts={accounts}
             actions={actions}
+            addProxy={addProxy}
             blockExplorers={blockExplorers}
+            currentProxy={currentProxy}
             keys={keys}
             isProxying={isProxying}
             isValidUser={isValidUser}
+            onClose={this.onClose}
+            removeProxy={removeProxy}
             settings={settings}
             system={system}
+            tables={tables}
           />
 
           <Divider hidden />
@@ -267,8 +363,10 @@ class Producers extends Component<Props> {
             account={accounts[settings.account]}
             isProxying={isProxying}
             modified={modified}
+            producers={producers}
             removeProducer={this.removeProducer.bind(this)}
             selected={selected}
+            settings={settings}
             submitProducerVotes={() => this.previewProducerVotes(true)}
             submitting={submitting}
           />
@@ -279,7 +377,8 @@ class Producers extends Component<Props> {
       <div ref={this.handleContextRef}>
         <Grid divided>
           <Grid.Row>
-            <Grid.Column width={6}>
+            {( activeTabIndex == 0 || activeTabIndex == 1) ?
+            <Grid.Column width={5}>
               <SidebarAccount
                 actions={actions}
                 history={history}
@@ -287,52 +386,148 @@ class Producers extends Component<Props> {
               />
               {sidebar}
             </Grid.Column>
-            <Grid.Column width={10}>
-              {(producers.list.length > 0)
-               ? [(
-                 <Visibility
-                   continuous
-                   key="ProducersTable"
-                   fireOnMount
-                   onBottomVisible={this.loadMore}
-                   once={false}
-                 >
-                   <ProducersTable
-                     account={accounts[settings.account]}
-                     actions={actions}
-                     addProducer={this.addProducer.bind(this)}
-                     amount={amount}
-                     attached="top"
-                     globals={globals}
-                     isMainnet={isMainnet}
-                     isProxying={isProxying}
-                     isQuerying={this.isQuerying}
-                     keys={keys}
-                     producers={producers}
-                     removeProducer={this.removeProducer.bind(this)}
-                     resetDisplayAmount={this.resetDisplayAmount}
-                     selected={selected}
-                     settings={settings}
-                     system={system}
-                     isValidUser={isValidUser}
-                   />
-                 </Visibility>
-               ), (
-                 (!querying && amount < producers.list.length)
-                 ? (
-                   <Segment key="ProducersTableLoading" clearing padded vertical>
-                     <Loader active />
-                   </Segment>
-                 ) : false
-               )]
-               : (
-                 <Segment attached="bottom" stacked>
-                   <Header textAlign="center">
-                     {t('producer_none_loaded')}
-                   </Header>
-                 </Segment>
-               )
-              }
+            : '' }
+            <Grid.Column width={columnWidth}>
+              <Tab onTabChange={this.handleTabChange}
+                panes={
+                  (settings.blockchain.tokenSymbol==='TLOS') ?
+                  [
+                    {
+                      menuItem: t('producers_block_producers'),
+                      render: () => {
+                        return (
+                          <Tab.Pane>
+                            <BlockProducers
+                              {...this.props}
+                              addProducer={this.addProducer.bind(this)}
+                              removeProducer={this.removeProducer.bind(this)}
+                              selected={selected}
+                            />
+                          </Tab.Pane>
+                        );
+                      }
+                    },
+                    {
+                      menuItem: t('producers_proxies'),
+                      render: () => {
+                        return (
+                          <Tab.Pane>
+                            <Proxies
+                              {...this.props}
+                              addProxy={this.addProxy.bind(this)}
+                              removeProxy={this.removeProxy.bind(this)}
+                            />
+                          </Tab.Pane>
+                        );
+                      }
+                    },
+                    {
+                      menuItem: 'Proposals',
+                      render: () => {
+                        return (
+                          <Tab.Pane>
+                            <GovernanceProposals
+                              {...this.props}
+                              onCloseProposal={this.onCloseProposal.bind(this)}
+                              isValidUser={isValidUser}
+                            />
+                          </Tab.Pane>
+                        );
+                      }
+                    },
+                    {
+                      menuItem: 'Arbitration',
+                      render: () => {
+                        return (
+                          <Tab.Pane>
+                            <GovernanceArbitration
+                              {...this.props}
+                            />
+                          </Tab.Pane>
+                        );
+                      }
+                    },
+                    {
+                      menuItem: 'TF Voting',
+                      render: () => {
+                        return (
+                          <Tab.Pane>
+                            <GovernanceTFVoting
+                              {...this.props}
+                            />
+                          </Tab.Pane>
+                        );
+                      }
+                    },
+                    {
+                      menuItem: 'Ratify',
+                      render: () => {
+                        return (
+                          <Tab.Pane>
+                            <GovernanceRatify
+                              {...this.props}
+                            />
+                          </Tab.Pane>
+                        );
+                      }
+                    },
+                    {
+                      menuItem: 'Docs',
+                      render: () => {
+                        return (
+                          <Tab.Pane>
+                            <GovernanceRatifyAmend
+                              {...this.props}
+                            />
+                          </Tab.Pane>
+                        );
+                      }
+                    }
+                  ] : (settings.blockchain.tokenSymbol==='WAX') ? [{
+                    menuItem: t('producers_block_producers'),
+                    render: () => {
+                      return (
+                        <Tab.Pane>
+                          <BlockProducers
+                            {...this.props}
+                            addProducer={this.addProducer.bind(this)}
+                            removeProducer={this.removeProducer.bind(this)}
+                            selected={selected}
+                          />
+                        </Tab.Pane>
+                      );
+                    }
+                    },
+                    {
+                      menuItem: t('producers_proxies'),
+                      render: () => {
+                        return (
+                          <Tab.Pane>
+                            <Proxies
+                              {...this.props}
+                              addProxy={this.addProxy.bind(this)}
+                              removeProxy={this.removeProxy.bind(this)}
+                            />
+                          </Tab.Pane>
+                        );
+                      }
+                    }] : [{
+                    menuItem: t('producers_block_producers'),
+                    render: () => {
+                      return (
+                        <Tab.Pane>
+                          <BlockProducers
+                            {...this.props}
+                            addProducer={this.addProducer.bind(this)}
+                            removeProducer={this.removeProducer.bind(this)}
+                            selected={selected}
+                          />
+                        </Tab.Pane>
+                      );
+                    }
+                  }]
+                }
+              />
             </Grid.Column>
           </Grid.Row>
         </Grid>

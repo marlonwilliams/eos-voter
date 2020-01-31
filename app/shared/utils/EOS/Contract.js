@@ -1,18 +1,38 @@
-import { find, map, pick } from 'lodash';
+import { forOwn, find, map, pick } from 'lodash';
 
 const Eos = require('eosjs');
 
 export const typeMap = {
-  uint64: 'int',
+  bool: 'bool',
+  int8: 'int',
+  int16: 'int',
+  int32: 'int',
+  int64: 'int',
+  int128: 'int',
+  int256: 'int',
+  uint8: 'int',
+  uint16: 'int',
   uint32: 'int',
-  bool: 'bool'
+  uint64: 'int',
+  uint128: 'int',
+  uint256: 'int',
 };
 
 export default class EOSContract {
   constructor(abi, account = undefined) {
+    abi.actions = abi.actions.sort((a: IContractAction, b: IContractAction) => (a.name > b.name) ? 1 : ((a.name < b.name) ? -1 : 0));
+    abi.tables = abi.tables.sort((a: IContractTable, b: IContractTable) => (a.name > b.name) ? 1 : ((a.name < b.name) ? -1 : 0));
+    abi.structs = abi.structs.sort((a: IContractStruct, b: IContractStruct) => (a.name > b.name) ? 1 : ((a.name < b.name) ? -1 : 0));
+
     this.account = account;
     this.abi = abi;
     this.typeMap = typeMap;
+
+    forOwn(abi.types, (type) => {
+      if (type.type in this.typeMap) {
+        this.typeMap[type.new_type_name] = this.typeMap[type.type];
+      }
+    });
   }
 
   tx(actionName, account, data) {

@@ -2,6 +2,12 @@ import { forEach } from 'lodash';
 
 import * as types from './types';
 import eos from './helpers/eos';
+import eos2 from './helpers/eos2';
+import { getRexBalance } from './rex';
+import EOSAccount from '../utils/EOS/Account';
+import { getContactByPublicKey } from './globals';
+const ecc = require('eosjs-ecc');
+import { payforcpunet } from './helpers/eos';
 
 export function clearAccountCache() {
   return (dispatch: () => void) => {
@@ -27,13 +33,32 @@ export function refreshAccountBalances(account, requestedTokens) {
 export function claimUnstaked(owner) {
   return (dispatch: () => void, getState) => {
     const {
-      connection
+      connection,
+      settings
     } = getState();
     dispatch({
       type: types.SYSTEM_REFUND_PENDING
     });
-    return eos(connection, true).refund({
-      owner
+
+    let actions = [
+      {
+        account: 'eosio',
+        name: 'refund',
+        authorization: [{
+            actor: owner,
+            permission: settings.authorization || 'active'
+          }],
+        data: {
+          owner
+        }
+      }
+    ];
+
+    const payforaction = payforcpunet(owner, getState());
+    if (payforaction) actions = payforaction.concat(actions);
+
+    return eos(connection, true, payforaction!==null).transaction({
+      actions: actions
     }).then((tx) => {
       // Reload the account
       dispatch(getAccount(owner));
@@ -87,6 +112,29 @@ export function checkAccountAvailability(account = '') {
   };
 }
 
+export function checkAccountExists(account = '') {
+  return (dispatch: () => void, getState) => {
+    dispatch({
+      type: types.SYSTEM_ACCOUNT_EXISTS_PENDING,
+      payload: { account_name: account }
+    });
+    const {
+      connection,
+      settings
+    } = getState();
+     if (account && (settings.node || settings.node.length !== 0)) {
+      eos(connection).getAccount(account).then(() => dispatch({
+        type: types.SYSTEM_ACCOUNT_EXISTS_SUCCESS,
+        payload: { account_name: account }
+      })).catch((err) => dispatch({
+        type: types.SYSTEM_ACCOUNT_EXISTS_FAILURE,
+        payload: { err }
+      }));
+    }
+  };
+}
+
+
 export function getAccount(account = '') {
   return (dispatch: () => void, getState) => {
     dispatch({
@@ -102,13 +150,26 @@ export function getAccount(account = '') {
         // Trigger the action to load this accounts balances'
         if (settings.account === account) {
           dispatch(getCurrencyBalance(account));
+          dispatch(getRexBalance());
+          if (settings.blockchain.tokenSymbol==='WAX')
+            dispatch(getGenesisBalance(account));
+
+          const model = new EOSAccount(results);
+          if (model) {
+            const auth = settings.authorization || 'active';
+            const keys = model.getKeysForAuthorization(auth);
+            if (keys && keys.length > 0) {
+              const { pubkey } = keys[0];
+              dispatch(getContactByPublicKey(pubkey));
+            }
+          }
         }
         // PATCH - Force in self_delegated_bandwidth if it doesn't exist
         const modified = Object.assign({}, results);
         if (!modified.self_delegated_bandwidth) {
           modified.self_delegated_bandwidth = {
-            cpu_weight: '0.0000 TLOS',
-            net_weight: '0.0000 TLOS'
+            cpu_weight: '0.'.padEnd(settings.tokenPrecision + 2, '0') + ' ' + settings.blockchain.tokenSymbol,
+            net_weight: '0.'.padEnd(settings.tokenPrecision + 2, '0') + ' ' + settings.blockchain.tokenSymbol
           };
         }
         // If a proxy voter is set, cache it's data for vote referencing
@@ -207,6 +268,44 @@ function sortByReqId(actionOne, actionTwo) {
   return actionTwo.account_action_seq - actionOne.account_action_seq;
 }
 
+export function getGenesisBalance(account) {
+  return (dispatch: () => void, getState) => {
+    dispatch({
+      type: types.GET_GENESIS_BALANCE_REQUEST
+    });
+    const { connection } = getState();
+    const query = {
+      json: true,
+      code: 'eosio',
+      scope: account,
+      table: 'genesis',
+    };
+    eos(connection).getTableRows(query).then((results) => {
+      let { rows } = results;
+      const { 
+        balance, 
+        unclaimed_balance, 
+        last_claim_time, 
+        last_updated 
+      } = rows[0];
+        
+      return dispatch({
+        type: types.GET_GENESIS_BALANCE_SUCCESS,
+        payload: {
+          account: account,
+          balance: balance, 
+          unclaimed_balance: unclaimed_balance, 
+          last_claim_time: last_claim_time, 
+          last_updated: last_updated
+        }
+      });
+    }).catch((err) => dispatch({
+      type: types.GET_GENESIS_BALANCE_FAILURE,
+      payload: { err },
+    }));
+  };
+}
+
 export function getCurrencyBalance(account, requestedTokens = false) {
   return (dispatch: () => void, getState) => {
     const {
@@ -215,7 +314,7 @@ export function getCurrencyBalance(account, requestedTokens = false) {
     } = getState();
     if (account && (settings.node || settings.node.length !== 0)) {
       const { customTokens } = settings;
-      let selectedTokens = ['eosio.token:TLOS'];
+      let selectedTokens = ['eosio.token:' + settings.blockchain.tokenSymbol];
       if (customTokens && customTokens.length > 0) {
         selectedTokens = [...customTokens, ...selectedTokens];
       }
@@ -257,7 +356,11 @@ function formatPrecisions(balances) {
   for (let i = 0; i < balances.length; i += 1) {
     const [amount, symbol] = balances[i].split(' ');
     const [, suffix] = amount.split('.');
-    precision[symbol] = suffix.length;
+    var suffixLen = 0;
+    if(suffix !== undefined) {
+        suffixLen = suffix.length;
+    }
+    precision[symbol] = suffixLen;
   }
   return precision;
 }
@@ -280,15 +383,24 @@ export function getAccountByKey(key) {
       type: types.SYSTEM_ACCOUNT_BY_KEY_PENDING,
       payload: { key }
     });
+    // Prevent private keys from submitting
+    if (ecc.isValidPrivate(key)) {
+      return dispatch({
+        type: types.SYSTEM_ACCOUNT_BY_KEY_FAILURE,
+      });
+    }
     const {
       connection,
       settings
     } = getState();
     if (key && (settings.node || settings.node.length !== 0)) {
-      return eos(connection).getKeyAccounts(key).then((accounts) => dispatch({
+      eos(connection).getKeyAccounts(key).then((accounts) => {
+        dispatch(getAccounts(accounts.account_names));
+        return dispatch({
         type: types.SYSTEM_ACCOUNT_BY_KEY_SUCCESS,
         payload: { accounts }
-      })).catch((err) => dispatch({
+      })
+      }).catch((err) => dispatch({
         type: types.SYSTEM_ACCOUNT_BY_KEY_FAILURE,
         payload: { err, key }
       }));
@@ -308,8 +420,103 @@ export function clearAccountByKey() {
   };
 }
 
+export function claimGBMRewards() {
+  return (dispatch: () => void, getState) => {
+    const {
+      connection,
+      settings
+    } = getState();
+
+    dispatch({
+      type: types.SYSTEM_CLAIMGBM_PENDING
+    });
+
+    const { account } = settings;
+
+    // Build the operation to perform
+    const op = {
+      actions: [
+        {
+          account: 'eosio',
+          name: 'claimgenesis',
+          authorization: [{
+            actor: account,
+            permission: settings.authorization || 'active',
+          }],
+          data: {
+            claimer: account
+          },
+        }
+      ]
+    };
+
+    return eos2(connection, true).transact(op, {
+      broadcast: true,
+      blocksBehind: 3,
+      expireSeconds: 120
+    }).then((tx) => {
+      return dispatch({
+        payload: { tx },
+        type: types.SYSTEM_CLAIMGBM_SUCCESS
+      });
+    }).catch((err) => dispatch({
+      payload: { err },
+      type: types.SYSTEM_CLAIMGBM_FAILURE
+    }));
+  };
+}
+
+export function claimVotingRewards() {
+  return (dispatch: () => void, getState) => {
+    const {
+      connection,
+      settings
+    } = getState();
+
+    dispatch({
+      type: types.SYSTEM_CLAIMVOTING_PENDING
+    });
+
+    const { account } = settings;
+
+    // Build the operation to perform
+    const op = {
+      actions: [
+        {
+          account: 'eosio',
+          name: 'claimgbmvote',
+          authorization: [{
+            actor: account,
+            permission: settings.authorization || 'active',
+          }],
+          data: {
+            owner: account
+          },
+        }
+      ]
+    };
+
+    return eos2(connection, true).transact(op, {
+      broadcast: true,
+      blocksBehind: 3,
+      expireSeconds: 120
+    }).then((tx) => {
+      return dispatch({
+        payload: { tx },
+        type: types.SYSTEM_CLAIMVOTING_SUCCESS
+      });
+    }).catch((err) => dispatch({
+      payload: { err },
+      type: types.SYSTEM_CLAIMVOTING_FAILURE
+    }));
+  };
+}
+
 export default {
   checkAccountAvailability,
+  checkAccountExists,
+  claimGBMRewards,
+  claimVotingRewards,
   clearAccountByKey,
   clearAccountCache,
   getAccount,

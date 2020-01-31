@@ -34,7 +34,8 @@ export function getProducers(previous = false) {
       limit: 1000,
     };
     if (previous) {
-      query.lower_bound = previous[previous.length - 1].owner;
+      const owner = previous[previous.length - 1].owner;
+      query.lower_bound =  isNaN(owner) ? owner : ' ' + owner;
     }
     eos(connection).getTableRows(query).then((results) => {
       let { rows } = results;
@@ -50,28 +51,34 @@ export function getProducers(previous = false) {
         // recurse
         return dispatch(getProducers(rows));
       }
-      const { globals } = getState();
+      const { globals, settings } = getState();
       const { current } = globals;
       let backupMinimumPercent = false;
       let tokensToProducersForVotes = false;
       const { contract } = globals;
       if (contract && contract['eosio.token']) {
-        const supply = parseFloat(contract['eosio.token'].TLOS.supply);
+        // fixed values for EOS and TELOS chains until there's a
+        // better way to find these dynamically via EOSIO
+        const coreSymbol = settings.blockchain.tokenSymbol;
+        const isEOSChain = (coreSymbol === 'EOS');
+        const coreToken = contract['eosio.token'][coreSymbol];
+        const supply = coreToken.supply ? parseFloat(coreToken.supply) : 0;
         // yearly inflation
-        const inflation = 0.025;
+        const inflation = isEOSChain ? 0.04879 : 0.025;
         // Tokens per year
         const tokensPerYear = supply * inflation;
         // Tokens per day
         const tokensPerDay = tokensPerYear / 365;
-        // 1% of inflation
-        const tokensToProducers = tokensPerDay * 0.1;
-        // 75% rewards based on votes
+        // % of inflation
+        const tokensToProducers = isEOSChain ? (tokensPerDay * 0.2) : (tokensPerDay * 0.1);
+        // % rewards based on votes
         tokensToProducersForVotes = tokensToProducers * 0.75;
         // Percentage required to earn 100 tokens/day (break point for backups)
         backupMinimumPercent = 100 / tokensToProducersForVotes;
       }
+      const defaultPubKey = 'EOS1111111111111111111111111111111114T1Anm';
       const data = rows
-        .filter((p) => (p.producer_key !== 'TLOS1111111111111111111111111111111114T1Anm'))
+        .filter((p) => (p.producer_key !== defaultPubKey))
         .map((producer) => {
           const votes = parseInt(producer.total_votes, 10);
           const percent = votes / current.total_producer_vote_weight;
@@ -108,7 +115,7 @@ export function getProducersInfo(previous = false) {
     });
     const { connection } = getState();
     // Don't retrieve if we're not on mainnet
-    if (connection.chain !== 'telosss-mainnet') return;
+    if (connection.chain && connection.chain.toLowerCase().indexOf('mainnet') === -1) return;
     const query = {
       json: true,
       code: 'producerjson',
@@ -117,7 +124,8 @@ export function getProducersInfo(previous = false) {
       limit: 1000
     };
     if (previous) {
-      query.lower_bound = previous[previous.length - 1].owner;
+      const owner = previous[previous.length - 1].owner;
+      query.lower_bound =  isNaN(owner) ? owner : ' ' + owner;
     }
     eos(connection).getTableRows(query).then((results) => {
       let { rows } = results;
@@ -147,14 +155,14 @@ export function getProducersInfo(previous = false) {
 }
 
 export function getProducerInfo(producer) {
-  return (dispatch: () => void, getState) => {
+  /*return (dispatch: () => void, getState) => {
     dispatch({
       type: types.SYSTEM_PRODUCERJSON_PENDING,
       payload: { producer }
     });
     const { connection } = getState();
     // Don't retrieve if we're not on mainnet
-    if (connection.chain !== 'telosss-mainnet') return;
+    if (connection.chain && connection.chain.toLowerCase().indexOf('mainnet') === -1) return;
     const query = {
       json: true,
       code: 'producerjson',
@@ -184,6 +192,7 @@ export function getProducerInfo(producer) {
       payload: { err, producer },
     }));
   };
+  */
 }
 
 export default {

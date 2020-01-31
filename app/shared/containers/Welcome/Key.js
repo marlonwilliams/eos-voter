@@ -6,13 +6,14 @@ import { withRouter } from 'react-router-dom';
 import compose from 'lodash/fp/compose';
 import debounce from 'lodash/debounce';
 import { translate } from 'react-i18next';
-import { Button, Checkbox, Container, Form, Input, Message, Radio, Segment } from 'semantic-ui-react';
+import { Button, Checkbox, Container, Dropdown, Form, Input, Message, Radio, Segment } from 'semantic-ui-react';
 
 import * as AccountActions from '../../actions/accounts';
 import * as SettingsActions from '../../actions/settings';
 import * as ValidateActions from '../../actions/validate';
 import * as WalletActions from '../../actions/wallet';
 import * as WalletsActions from '../../actions/wallets';
+import * as types from '../../../shared/actions/types';
 
 const ecc = require('eosjs-ecc');
 
@@ -34,6 +35,7 @@ class WelcomeKeyContainer extends Component<Props> {
     super(props);
     const { keys } = props;
     this.state = {
+      authorization: 'active',
       key: (keys) ? keys.key : '',
       visible: false
     };
@@ -47,6 +49,7 @@ class WelcomeKeyContainer extends Component<Props> {
 
   onCompare = () => {
     const {
+      authorization,
       key
     } = this.state;
     const {
@@ -59,23 +62,43 @@ class WelcomeKeyContainer extends Component<Props> {
       importWallet,
       setSetting,
       setTemporaryKey,
+      setWalletMode,
       useWallet,
       validateKey
     } = actions;
     // Set for temporary usage
-    setTemporaryKey(key);
+    setSetting('authorization', authorization);
     switch (settings.walletMode) {
       case 'cold': {
+        setTemporaryKey(key, authorization);
         if (ecc.isValidPrivate(key) && onStageSelect) {
-          onStageSelect(4);
+          onStageSelect(types.SETUP_STAGE_WALLET_CONFIG);
         }
         break;
       }
       case 'watch': {
+        const {
+          accounts,
+        } = this.props;
+        const {
+          account
+        } = settings;
+        let validKeys = [];
+        let pubkey = false;
+        try {
+          if (accounts[account]) {
+            validKeys = new Set(accounts[account].permissions
+              .filter((perm) => perm.required_auth.keys.length > 0)
+              .map((perm) => perm.required_auth.keys[0].key)).values();
+          }
+          pubkey = validKeys.next().value;
+        } catch (e) {
+          // invalid key
+        }
         // Import the watch wallet
-        importWallet(settings.account, false, false, 'watch');
+        importWallet(settings.account, authorization, false, false, 'watch', settings.blockchain.chainId, pubkey);
         // Set this wallet as the used wallet
-        useWallet(settings.account);
+        useWallet(settings.account, settings.blockchain.chainId, authorization);
         // Initialize the wallet setting
         setSetting('walletInit', true);
         // Move on to the voter
@@ -84,10 +107,14 @@ class WelcomeKeyContainer extends Component<Props> {
       }
       default: {
         // Validate against account
-        validateKey(key, settings);
-        if (onStageSelect) {
-          onStageSelect(4);
-        }
+        validateKey(key, settings).then((authorization) => {
+          setSetting('authorization', authorization);
+          setWalletMode('hot');
+          setTemporaryKey(key, authorization);
+          if (onStageSelect) {
+            onStageSelect(types.SETUP_STAGE_WALLET_CONFIG);
+          }
+        });
         break;
       }
     }
@@ -113,6 +140,12 @@ class WelcomeKeyContainer extends Component<Props> {
     }
   }
 
+  setAuthorization = (e, { value }) => {
+    this.setState({
+      authorization: value
+    });
+  }
+
   render() {
     const {
       accounts,
@@ -126,22 +159,41 @@ class WelcomeKeyContainer extends Component<Props> {
       account
     } = settings;
     const {
+      authorization,
       key,
       visible
     } = this.state;
     let currentPublic;
     try {
-      currentPublic = ecc.privateToPublic(keys.key,'TLOS');
+      currentPublic = ecc.privateToPublic(keys.key);
     } catch (e) {
       // invalid key
     }
     // For hot wallets
     let validKeys = false;
+    let options = '';
     if (accounts[account]) {
       validKeys = new Set(accounts[account].permissions
         .filter((perm) => perm.required_auth.keys.length > 0)
         .map((perm) => perm.required_auth.keys[0].key));
+
+        options = accounts[account].permissions.map((authority) => (
+          {
+            key: authority.perm_name,
+            text: authority.perm_name,
+            value: authority.perm_name
+          }
+        ));
+    } else {
+      options = ['active', 'owner'].map((authority) => (
+        {
+          key: authority,
+          text: authority,
+          value: authority
+        }
+      ));
     }
+    
     let buttonColor = 'blue';
     let buttonIcon = 'search';
     let buttonText = t('welcome_compare_key');
@@ -280,11 +332,37 @@ class WelcomeKeyContainer extends Component<Props> {
                 onChange={this.onToggleKey}
                 checked={visible}
               />
+              
+              <React.Fragment>
+                <p>{t('tools:tools_form_permissions_auth_permission')}</p>
+                <Dropdown
+                  defaultValue={authorization}
+                  fluid
+                  onChange={this.setAuthorization}
+                  options={options}
+                  selection
+                />
+              </React.Fragment>
+                
             </React.Fragment>
           )
           : false
         }
-
+        {(settings.walletMode === 'watch')
+          ? (
+            <React.Fragment>
+              <p>{t('tools:tools_form_permissions_auth_permission')}</p>
+              <Dropdown
+                defaultValue={authorization}
+                fluid
+                onChange={this.setAuthorization}
+                options={options}
+                selection
+              />
+            </React.Fragment>
+          )
+          : false
+        }
         {matching}
         {message}
         <Container>
@@ -300,7 +378,7 @@ class WelcomeKeyContainer extends Component<Props> {
           <Button
             content={t('back')}
             icon="arrow left"
-            onClick={() => onStageSelect(2)}
+            onClick={() => onStageSelect(types.SETUP_STAGE_ACCOUNT_LOOKUP)}
             size="small"
             style={{ marginTop: '1em' }}
           />

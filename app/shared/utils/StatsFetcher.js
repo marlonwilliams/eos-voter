@@ -1,9 +1,12 @@
 import { Decimal } from 'decimal.js';
 
 export default class StatsFetcher {
-  constructor(account, balance) {
+  constructor(account, balance, settings, delegations, rexbalance) {
     this.account = account;
     this.balance = balance;
+    this.settings = settings;
+    this.delegations = delegations;
+    this.rexbalance = rexbalance;
   }
 
   fetchAll() {
@@ -11,12 +14,15 @@ export default class StatsFetcher {
       refundDate: this.refundDate(),
       tokens: this.tokens(),
       totalBeingUnstaked: this.totalBeingUnstaked(),
-      totalStaked: this.totalStaked(),
-      totalTokens: this.totalTokens()
+      totalStakedToSelf: this.totalStakedToSelf(),
+      totalStakedToOthers: this.totalStakedToOthers(),
+      totalStaked: this.totalStakedToSelf(), // TODO: remove
+      totalTokens: this.totalTokens(),
+      totalREX: this.totalREX()
     };
   }
 
-  totalStaked() {
+  totalStakedToSelf() {
     const {
       self_delegated_bandwidth
     } = this.account;
@@ -29,6 +35,30 @@ export default class StatsFetcher {
     return cpu_amount.plus(net_amount);
   }
 
+  totalREX() {
+    if (!this.rexbalance) return Decimal(0);
+    
+    const {
+      vote_stake
+    } = this.rexbalance;
+
+    if (!vote_stake) return Decimal(0);
+
+    const rex_balance = Decimal(vote_stake.split(' ')[0]);
+
+    return rex_balance;
+  }
+
+  totalStakedToOthers() {
+    if (!this.delegations || this.delegations.length === 0) return Decimal(0);
+
+    const cpuWeightsStakedToOthers = this.delegations.map((delegation) => Number(delegation.cpu_weight.split(' ')[0]));
+    const netWeightsStakedToOthers = this.delegations.map((delegation) => Number(delegation.net_weight.split(' ')[0]));
+    const allWeightsStakedToOthers = cpuWeightsStakedToOthers.concat(netWeightsStakedToOthers);
+    const totalStaked = Decimal(allWeightsStakedToOthers.reduce((sum, value) => sum + value));
+
+    return totalStaked.minus(this.totalStakedToSelf());
+  }
 
   refundDate() {
     const {
@@ -63,15 +93,16 @@ export default class StatsFetcher {
   }
 
   tokens() {
-    return this.balance ? this.balance : { TLOS: 0 };
+    return this.balance ? this.balance : { [this.settings.blockchain.tokenSymbol]: 0 };
   }
 
   totalTokens() {
-    const totalStaked = this.totalStaked();
+    const totalStaked = this.totalStakedToSelf().plus(this.totalStakedToOthers());
     const totalBeingUnstaked = this.totalBeingUnstaked();
-    const totalTokens = this.tokens().TLOS || new Decimal(0);
+    const totalTokens = this.tokens()[this.settings.blockchain.tokenSymbol] || new Decimal(0);
+    const totalREX = this.totalREX();
 
-    return totalStaked.plus(totalBeingUnstaked).plus(totalTokens);
+    return totalStaked.plus(totalBeingUnstaked).plus(totalTokens).plus(totalREX);
   }
 
   resourceUsage() {
@@ -106,21 +137,26 @@ export default class StatsFetcher {
   }
 
   delegatedStats() {
-    const {
-      total_resources,
-      self_delegated_bandwidth
-    } = this.account;
+    const no_delegation = {
+      cpu_weight: '0.'.padEnd(this.settings.tokenPrecision + 2, '0') + ' ' + this.settings.blockchain.tokenSymbol,
+      net_weight: '0.'.padEnd(this.settings.tokenPrecision + 2, '0') + ' ' + this.settings.blockchain.tokenSymbol
+    };
+    const self_delegated_bandwidth = this.account.self_delegated_bandwidth ? 
+      this.account.self_delegated_bandwidth : no_delegation;
 
     const selfCpuAmount = Decimal(self_delegated_bandwidth.cpu_weight.split(' ')[0]);
     const selfNetAmount = Decimal(self_delegated_bandwidth.net_weight.split(' ')[0]);
+
+    const total_resources = this.account.total_resources ? 
+      this.account.total_resources : no_delegation;
 
     const totalCpuAmount = Decimal(total_resources.cpu_weight.split(' ')[0]);
     const totalNetAmount = Decimal(total_resources.net_weight.split(' ')[0]);
 
     return {
-      cpuWeight: `${totalCpuAmount.minus(selfCpuAmount).toFixed(4)} TLOS`,
-      netWeight: `${totalNetAmount.minus(selfNetAmount).toFixed(4)} TLOS`,
-      totalStaked: this.totalStaked()
+      cpuWeight: `${totalCpuAmount.minus(selfCpuAmount).toFixed(this.settings.tokenPrecision)} ${this.settings.blockchain.tokenSymbol}`,
+      netWeight: `${totalNetAmount.minus(selfNetAmount).toFixed(this.settings.tokenPrecision)} ${this.settings.blockchain.tokenSymbol}`,
+      totalStaked: this.totalStakedToSelf() + this.totalStakedToOthers()
     };
   }
 }

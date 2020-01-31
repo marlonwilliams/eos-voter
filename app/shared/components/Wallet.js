@@ -4,6 +4,8 @@ import { Grid } from 'semantic-ui-react';
 
 import SidebarAccount from '../containers/Sidebar/Account';
 
+import UserProfile from './Wallet/Status/Profile';
+
 import WalletPanel from './Wallet/Panel';
 import WalletStatus from './Wallet/Status';
 
@@ -12,15 +14,16 @@ type Props = {
   actionHistories: {},
   actions: {},
   balances: {},
+  balances: {},
   blockExplorers: {},
   globals: {},
   keys: {},
   settings: {},
+  system: {},
+  tables: {},
+  transaction: {},
   validate: {},
   wallet: {},
-  balances: {},
-  system: {},
-  transaction: {}
 };
 
 export default class Wallet extends Component<Props> {
@@ -34,20 +37,36 @@ export default class Wallet extends Component<Props> {
       balances,
       blockExplorers,
       chain,
+      connection,
       globals,
       keys,
+      rex,
       settings,
       system,
+      tables,
       transaction,
       validate,
       wallet
     } = this.props;
-
     return (
       <Grid divided>
         <Grid.Row>
-          <Grid.Column width={6}>
-            <SidebarAccount />
+          <Grid.Column width={4}>
+            <UserProfile 
+              actions={actions}
+              accounts={accounts}
+              balances={balances}
+              blockExplorers={blockExplorers}
+              connection={connection}
+              globals={globals}
+              keys={keys}
+              rex={rex}
+              settings={settings}
+              system={system}
+              transaction={transaction}
+              validate={validate}
+              wallet={wallet}
+            />
             <WalletPanel
               actions={actions}
               accounts={accounts}
@@ -55,14 +74,16 @@ export default class Wallet extends Component<Props> {
               blockExplorers={blockExplorers}
               globals={globals}
               keys={keys}
+              rex={rex}
               settings={settings}
               system={system}
               transaction={transaction}
               validate={validate}
               wallet={wallet}
+              connection={connection}
             />
           </Grid.Column>
-          <Grid.Column width={10}>
+          <Grid.Column width={12}>
             <WalletStatus
               actions={actions}
               actionHistories={actionHistories}
@@ -70,9 +91,12 @@ export default class Wallet extends Component<Props> {
               balances={balances}
               blockExplorers={blockExplorers}
               chain={chain}
+              connection={connection}
               globals={globals}
               keys={keys}
+              rex={rex}
               settings={settings}
+              tables={tables}
               validate={validate}
               wallet={wallet}
             />

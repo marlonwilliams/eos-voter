@@ -25,10 +25,11 @@ class WalletPanelFormRamBuy extends Component<Props> {
 
   constructor(props) {
     super(props);
-    const { account } = props;
+    const { account, connection, settings } = props;
 
     this.state = {
       activeTab: 'byRAMAmount',
+      ramTabName: 'by' + settings.blockchain.tokenSymbol + 'Amount',
       ramUsage: account.ram_usage,
       ramQuota: account.ram_quota,
       ramToBuy: null,
@@ -95,7 +96,9 @@ class WalletPanelFormRamBuy extends Component<Props> {
 
   errorsInForm = () => {
     const {
-      balance
+      balance,
+      connection,
+      settings
     } = this.props;
 
     const {
@@ -113,7 +116,8 @@ class WalletPanelFormRamBuy extends Component<Props> {
       return 'ram_has_to_be_over_minimum_amount';
     }
 
-    if (!balance.TLOS || Decimal(balance.TLOS).lessThan(priceOfRam)) {
+    if (!balance[settings.blockchain.tokenSymbol] || 
+      Decimal(balance[settings.blockchain.tokenSymbol]).lessThan(priceOfRam)) {
       return 'not_enough_balance';
     }
 
@@ -175,7 +179,8 @@ class WalletPanelFormRamBuy extends Component<Props> {
       onClose,
       settings,
       system,
-      t
+      t,
+      connection
     } = this.props;
 
     const {
@@ -185,7 +190,8 @@ class WalletPanelFormRamBuy extends Component<Props> {
       ramQuota,
       ramUsage,
       ramToBuy,
-      submitDisabled
+      submitDisabled,
+      ramTabName
     } = this.state;
 
     const shouldShowConfirm = this.state.confirming;
@@ -201,7 +207,7 @@ class WalletPanelFormRamBuy extends Component<Props> {
             <div>
               <Menu tabular>
                 <Menu.Item name="byRAMAmount" active={activeTab === 'byRAMAmount'} onClick={this.handleTabClick} />
-                <Menu.Item name="byTLOSAmount" active={activeTab === 'byTLOSAmount'} onClick={this.handleTabClick} />
+                <Menu.Item name={ramTabName} active={activeTab === ramTabName} onClick={this.handleTabClick} />
               </Menu>
               <Form
                 onKeyPress={this.onKeyPress}
@@ -213,27 +219,33 @@ class WalletPanelFormRamBuy extends Component<Props> {
                       ? (
                         <WalletPanelFormRamByAmount
                           amountOfRam={ramToBuy}
+                          connection={connection}
                           formError={formError}
                           globals={globals}
                           onChange={this.onChange}
                           onError={this.onError}
+                          settings={settings}
                         />
                       ) : (
                         <WalletPanelFormRamByCost
+                          connection={connection}
                           formError={formError}
                           globals={globals}
                           onChange={this.onChange}
                           onError={this.onError}
                           priceOfRam={priceOfRam}
+                          settings={settings}
                         />
                       )
                     }
                   </Grid.Column>
                   <Grid.Column width={8}>
                     <WalletPanelFormRamStats
-                      EOSbalance={balance.TLOS}
+                      connection={connection}
+                      EOSbalance={balance[settings.blockchain.tokenSymbol]}
                       ramQuota={ramQuota}
                       ramUsage={ramUsage}
+                      settings={settings}
                     />
                   </Grid.Column>
                 </Grid>
@@ -257,7 +269,7 @@ class WalletPanelFormRamBuy extends Component<Props> {
                 />
               </Form>
             </div>
-          ) : ''}
+          ) : ''} 
 
         {(shouldShowConfirm)
           ? (
@@ -265,12 +277,13 @@ class WalletPanelFormRamBuy extends Component<Props> {
               buying
               ramAmount={ramToBuy}
               newRamAmount={ramQuota + Number(ramToBuy)}
-              EOSbalance={balance.TLOS}
+              EOSbalance={balance[settings.blockchain.tokenSymbol]}
               onBack={this.onBack}
               onConfirm={this.onConfirm}
               priceOfRam={priceOfRam}
               ramQuota={ramQuota}
               settings={settings}
+              connection={connection}
             />
           ) : ''}
       </Segment>

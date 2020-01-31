@@ -1,9 +1,10 @@
 // @flow
 import React, { Component } from 'react';
 import { translate } from 'react-i18next';
-import { Container, Form, Message } from 'semantic-ui-react';
+import { Container, Form, Message, Header } from 'semantic-ui-react';
 import debounce from 'lodash/debounce';
 
+import GlobalFormFieldGeneric from '../../../../Global/Form/Field/Generic';
 import GlobalFormFieldAccount from '../../../../Global/Form/Field/Account';
 import GlobalFormFieldKeyPublic from '../../../../Global/Form/Field/Key/Public';
 import FormMessageError from '../../../../Global/Form/Message/Error';
@@ -16,6 +17,7 @@ class WalletPanelFormAccountRequest extends Component<Props> {
       isValid,
       onChange,
       setPrivateKey,
+      settings,
       shouldShowAccountNameWarning,
       t,
       values
@@ -33,7 +35,7 @@ class WalletPanelFormAccountRequest extends Component<Props> {
         </Header>
         <GlobalFormFieldAccount
           autofocus
-          label={t('tools:tools_form_create_account_account_name')}
+          label={t('wallet_account_request_form_create_account_account_name')}
           name="accountName"
           onChange={debounce(onChange, 300)}
           value={values.accountName}
@@ -41,18 +43,27 @@ class WalletPanelFormAccountRequest extends Component<Props> {
         <GlobalFormFieldKeyPublic
           defaultValue={values.owner}
           generate
-          label={t('tools:tools_form_create_account_owner_key')}
+          label={t('wallet_account_request_form_create_account_owner_key')}
           name="owner"
           onChange={onChange}
           setPrivateKey={setPrivateKey}
+          settings={settings}
         />
         <GlobalFormFieldKeyPublic
           defaultValue={values.active}
           generate
-          label={t('tools:tools_form_create_account_active_key')}
+          label={t('wallet_account_request_form_create_account_active_key')}
           name="active"
           onChange={onChange}
           setPrivateKey={setPrivateKey}
+          settings={settings}
+        />
+        <GlobalFormFieldGeneric
+          label={t('wallet_account_request_form_create_account_referred_by')}
+          name="referredby"
+          onChange={debounce(onChange, 600)}
+          settings={settings}
+          value={values.referredby}
         />
         <FormMessageError
           error={error}
@@ -62,7 +73,7 @@ class WalletPanelFormAccountRequest extends Component<Props> {
         {(shouldShowAccountNameWarning)
           ? (
             <Message
-              content={t('tools:tools_form_create_account_account_name_warning')}
+              content={t('wallet_account_request_form_create_account_account_name_warning')}
               icon="info circle"
               warning
             />

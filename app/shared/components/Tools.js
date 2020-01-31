@@ -7,9 +7,13 @@ import WelcomeConnectionContainer from '../containers/Welcome/Connection';
 import GlobalSettingsLanguage from './Global/Settings/Language';
 import GlobalSettingsBlockExplorer from './Global/Settings/BlockExplorer';
 import GlobalSettingsIdleTimeout from './Global/Settings/IdleTimeout';
+import GlobalSettingsIPFSNode from './Global/Settings/IPFSNode';
 import GlobalSettingsSkipLinkModal from './Global/Settings/SkipLinkModal';
 import GlobalSettingsResourceDisplayFormat from './Global/Settings/ResourceDisplayFormat';
 import GlobalSettingsFilterSpamTransfers from './Global/Settings/FilterSpamTransfers';
+import GlobalSettingsMirrorCastVote from './Global/Settings/MirrorCastVote';
+import GlobalSettingsResourceDisplay from './Global/Settings/ResourceDisplay';
+import GlobalSettingsSqrlToken from './Global/Settings/SqrlToken';
 
 class Tools extends Component<Props> {
   render() {
@@ -56,6 +60,13 @@ class Tools extends Component<Props> {
               ) : false
             }
             <Form.Field>
+              <label>Default IPFS Node:</label>
+              <GlobalSettingsIPFSNode
+                actions={actions}
+                settings={settings}
+              />
+            </Form.Field>
+            <Form.Field>
               <label>{t('tools_change_language2')}</label>
               <GlobalSettingsLanguage
                 actions={actions}
@@ -84,12 +95,36 @@ class Tools extends Component<Props> {
               <label>{t('tools_change_resource_display_format')}</label>
               <GlobalSettingsResourceDisplayFormat
                 actions={actions}
-                defaultValue={settings.displayResourcesAvailable || false}
+                defaultValue={settings.displayResourcesAvailable}
                 selection
               />
             </Form.Field>
             <Form.Field>
-              <label>{t('tools_change_spam_transfer_filter')}</label>
+              <label>{t('tools_change_mirror_cast_vote')}</label>
+              <GlobalSettingsMirrorCastVote
+                actions={actions}
+                defaultValue={settings.mirrorCastOnVote}
+                selection
+              />
+            </Form.Field>
+            <Form.Field>
+              <label>{t('tools_change_use_sqrl_token')}</label>
+              <GlobalSettingsSqrlToken
+                actions={actions}
+                defaultValue={settings.useSQRLtoken}
+                selection
+              />
+            </Form.Field>
+            <Form.Field>
+              <label>{t('tools_change_show_resources')}</label>
+              <GlobalSettingsResourceDisplay
+                actions={actions}
+                defaultValue={settings.showResourcesInWallet}
+                selection
+              />
+            </Form.Field>
+            <Form.Field>
+              <label>{t('tools_change_spam_transfer_filter', {tokenSymbol:settings.blockchain.tokenSymbol})}</label>
               <GlobalSettingsFilterSpamTransfers
                 actions={actions}
                 defaultValue={settings.filterSpamTransfersUnder}

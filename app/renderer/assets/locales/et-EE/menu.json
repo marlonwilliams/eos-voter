@@ -1,5 +1,6 @@
 {
-  "producer_voting": "Tootja hääletamine",
+  "exchange": "Exchange",
+  "producer_voting": "Governance",
   "wallet": "Rahakott",
   "tools": "Tööriistad"
 }

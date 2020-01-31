@@ -15,11 +15,13 @@ import exchangeAccounts from '../../../../../constants/exchangeAccounts';
 class WalletPanelFormTransferSend extends Component<Props> {
   constructor(props) {
     super(props);
+    
+    const { settings } = props;
     this.state = {
-      asset: 'TLOS',
+      asset: settings.blockchain.tokenSymbol,
       confirming: false,
       formError: false,
-      from: props.settings.account,
+      from: settings.account,
       memo: '',
       memoValid: true,
       quantity: '',
@@ -83,7 +85,7 @@ class WalletPanelFormTransferSend extends Component<Props> {
       const position = findIndex(contacts, { accountName: value });
 
       if (position > -1) {
-        this.onChange(e, { name: 'memo', value: contacts[position].defaultMemo, valid: true });
+        this.onChange(e, { name: 'memo', value: contacts[position].defaultMemo || '', valid: true });
       }
     }
 
@@ -144,7 +146,7 @@ class WalletPanelFormTransferSend extends Component<Props> {
       return true;
     }
 
-    if (!quantity || quantity === '' || quantity === '0.0000') {
+    if (!quantity || quantity === '' || quantity === '0.'.padEnd(settings.tokenPrecision + 2, '0')) {
       return true;
     }
 
@@ -160,7 +162,9 @@ class WalletPanelFormTransferSend extends Component<Props> {
       return 'cannot_transfer_to_self';
     }
 
-    if (exchangeAccounts.includes(to) && (!memo || memo.length === 0)) {
+    if (exchangeAccounts[settings.blockchain.tokenSymbol] &&
+      exchangeAccounts[settings.blockchain.tokenSymbol].includes(to) && 
+      (!memo || memo.length === 0)) {
       return 'transferring_to_exchange_without_memo';
     }
 
@@ -170,10 +174,12 @@ class WalletPanelFormTransferSend extends Component<Props> {
   render() {
     const {
       balances,
+      globals,
       onClose,
       settings,
       system,
-      t
+      t,
+      connection
     } = this.props;
     const {
       asset,
@@ -190,12 +196,12 @@ class WalletPanelFormTransferSend extends Component<Props> {
     } = this.state;
 
     const balance = balances[settings.account];
-    console.table(this.state)
+    
 
     let exchangeWarning;
 
-    if (memo && memo !== '') {
-      exchangeAccounts.forEach((exchangeAccount) => {
+    if (memo && memo !== '' && exchangeAccounts[settings.blockchain.tokenSymbol]) {
+      exchangeAccounts[settings.blockchain.tokenSymbol].forEach((exchangeAccount) => {
         if (memo.match(`.*?${exchangeAccount}.*?`)) {
           exchangeWarning = (
             <Message warning>
@@ -228,6 +234,7 @@ class WalletPanelFormTransferSend extends Component<Props> {
               to={to}
               waiting={waiting}
               waitingStarted={waitingStarted}
+              connection={connection}
             />
           ) : (
             <Segment basic clearing>
@@ -240,10 +247,12 @@ class WalletPanelFormTransferSend extends Component<Props> {
                 label={t('transfer_label_to')}
                 name="to"
                 onChange={this.onChange}
+                settings={settings}
                 value={to}
               />
               <FormFieldMultiToken
                 balances={balances}
+                globals={globals}
                 icon="x"
                 label={t('transfer_label_token_and_quantity')}
                 loading={false}
@@ -252,9 +261,11 @@ class WalletPanelFormTransferSend extends Component<Props> {
                 onChange={this.onChange}
                 settings={settings}
                 value={quantity}
+                connection={connection}
+                
               />
               <p>
-                {`${balance[asset].toFixed(4)} ${asset} ${t('transfer_header_available')}`}
+                {`${balance[asset].toFixed(settings.tokenPrecision)} ${asset} ${t('transfer_header_available')}`}
               </p>
               <GlobalFormFieldMemo
                 icon="x"

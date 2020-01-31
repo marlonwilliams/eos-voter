@@ -22,17 +22,19 @@ class GlobalAccountDropdown extends Component<Props> {
     this.setState({ open: !this.state.open });
   }
   onSearchChange = (e, { searchQuery }) => {
-    // console.log(searchQuery);
+    
   }
-  swapAccount = (account, password = false) => {
-    const { actions } = this.props;
-    actions.useWallet(account);
+  swapAccount = (account, authorization, password = false) => {
+    const { actions, settings } = this.props;
+    
+    actions.useWallet(account, settings.blockchain.chainId, authorization);
     if (password) {
       actions.unlockWallet(password);
     }
   }
   render() {
     const {
+      actions,
       settings,
       t,
       validate,
@@ -42,8 +44,15 @@ class GlobalAccountDropdown extends Component<Props> {
     if (!wallets || wallets.length === 0) {
       return false;
     }
+    
     const options = wallets
-      .filter(w => w.account !== settings.account)
+    .filter(w => (
+      w.chainId === settings.blockchain.chainId
+      && (
+        w.account !== wallet.account
+        || w.authorization !== wallet.authorization
+      )
+      ))
       .sort((a, b) => a.account > b.account)
       .map((w) => {
         let icon = {
@@ -78,20 +87,31 @@ class GlobalAccountDropdown extends Component<Props> {
         }
         return {
           props: {
+            key: (w.authorization) ? `${w.account}@${w.authorization}` : w.account,
             icon,
             onClick: () => {
-              return (w.mode === 'watch') ? this.swapAccount(w.account) : false;
+              return (w.mode === 'watch') ? this.swapAccount(w.account, w.authorization) : false;
             },
-            text: w.account,
-            value: w.account,
+            text: (w.authorization) ? `${w.account}@${w.authorization}` : `${w.account} (${t('global_accounts_dropdown_upgrade_required')})`,
+            value: `${w.account}@${w.authorization}`,
           },
           w
         };
       });
+    let currentName = (wallet.authorization)
+      ? `${wallet.account}@${wallet.authorization}`
+      : `${wallet.account}`;
     let icon = {
       color: 'green',
       name: 'id card'
     };
+    if (!wallet.mode) {
+      currentName = "Select an Account...";
+      icon = {
+        color: 'red',
+        name: 'x'
+      }
+    }
     switch (wallet.mode) {
       case 'cold': {
         icon = {
@@ -124,12 +144,12 @@ class GlobalAccountDropdown extends Component<Props> {
         labeled
         trigger={(
           <span>
-            <Icon color={icon.color} name={icon.name} /> {wallet.account}
+            <Icon color={icon.color} name={icon.name} /> {currentName}
           </span>
         )}
       >
-        <Dropdown.Menu>
-          <Dropdown.Menu scrolling>
+        <Dropdown.Menu key="parent">
+          <Dropdown.Menu scrolling key="menu">
             {(options.length > 0)
               ? options.map(option => {
                 const {
@@ -141,7 +161,8 @@ class GlobalAccountDropdown extends Component<Props> {
                 }
                 return (
                   <GlobalButtonElevate
-                    onSuccess={(password) => this.swapAccount(w.account, password)}
+                    key={props.value}
+                    onSuccess={(password) => this.swapAccount(w.account, w.authorization, password)}
                     settings={settings}
                     trigger={<Dropdown.Item key={props.value} {...props} />}
                     validate={validate}

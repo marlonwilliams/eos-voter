@@ -13,6 +13,8 @@ import * as AccountsActions from '../../../../actions/accounts';
 import * as SettingsActions from '../../../../actions/settings';
 import * as WalletsActions from '../../../../actions/wallets';
 
+import EOSAccount from '../../../../utils/EOS/Account';
+
 class GlobalModalAccountImportHot extends Component<Props> {
   state = {
     selected: [],
@@ -29,9 +31,13 @@ class GlobalModalAccountImportHot extends Component<Props> {
       value
     } = this.state;
     const {
-      actions
+      actions,
+      settings
     } = this.props;
-    actions.importWallets(selected, value, password);
+    selected.forEach((auth) => {
+      const [account, authorization] = auth.split('@');
+      actions.importWallet(account, authorization, value, password, 'hot', settings.blockchain.chainId);
+    });
     this.props.onClose();
   }
   onChange = (e, data) => {
@@ -65,6 +71,7 @@ class GlobalModalAccountImportHot extends Component<Props> {
   render() {
     const {
       accounts,
+      actions,
       onClose,
       settings,
       system,
@@ -72,12 +79,14 @@ class GlobalModalAccountImportHot extends Component<Props> {
       validate
     } = this.props;
     const {
+      publicKey,
       selected,
       valid,
       value
     } = this.state;
     const matches = accounts.__lookups;
     const disabled = (!selected.length || !valid);
+
     if (settings.walletMode === 'watch') {
       return (
         <Tab.Pane>
@@ -107,6 +116,7 @@ class GlobalModalAccountImportHot extends Component<Props> {
             name="key"
             placeholder={t('welcome:welcome_key_compare_placeholder')}
             onChange={this.onChange}
+            settings={settings}
             value={value}
           />
           {(value && matches.length > 0)
@@ -114,13 +124,25 @@ class GlobalModalAccountImportHot extends Component<Props> {
               <Segment stacked color="blue">
                 {t('global_account_import_select_accounts')}
                 <Divider />
-                {(matches.map((account) => (
-                  <Checkbox
-                    label={account}
-                    name={account}
-                    onClick={this.toggleAccount}
-                  />
-                )))}
+                {(matches.map((account) => {
+                  const data = accounts[account];
+                  if (data) {
+                    const authorizations = new EOSAccount(data).getAuthorizations(publicKey);
+                    return authorizations.map((authorization) => {
+                      const auth = `${account}@${authorization.perm_name}`;
+                      return (
+                        <p>
+                          <Checkbox
+                            label={auth}
+                            name={auth}
+                            onChange={this.toggleAccount}
+                          />
+                        </p>
+                      );
+                    });
+                  }
+                  return false;
+                }))}
               </Segment>
             )
             : false

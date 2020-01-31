@@ -12,13 +12,6 @@ export function getCustomTokens(previous = false) {
       type: types.SYSTEM_CUSTOMTOKENS_PENDING
     });
     const { connection } = getState();
-    // Don't retrieve if we're not on mainnet
-    if (connection.chain !== 'telosss-mainnet') {
-      return dispatch({
-        type: types.SYSTEM_CUSTOMTOKENS_FAILURE
-      });
-    }
-
     const query = {
       json: true,
       code: 'customtokens',
@@ -27,7 +20,8 @@ export function getCustomTokens(previous = false) {
       limit: 1000,
     };
     if (previous) {
-      query.lower_bound = previous[previous.length - 1].owner;
+      const owner = previous[previous.length - 1].owner;
+      query.lower_bound =  isNaN(owner) ? owner : ' ' + owner;
     }
     eos(connection).getTableRows(query).then((results) => {
       let { rows } = results;

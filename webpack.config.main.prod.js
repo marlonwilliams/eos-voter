@@ -17,7 +17,7 @@ export default merge.smart(baseConfig, {
   target: 'electron-main',
 
   entry: [
-    'babel-polyfill',
+    //'babel-polyfill',
     './app/main/main.dev',
   ],
 
@@ -29,7 +29,7 @@ export default merge.smart(baseConfig, {
   plugins: [
     new UglifyJSPlugin({
       parallel: true,
-      sourceMap: true
+      sourceMap: false
     }),
 
     new BundleAnalyzerPlugin({

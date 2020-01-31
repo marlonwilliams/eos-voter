@@ -6,6 +6,7 @@ import ReactJson from 'react-json-view';
 import { Header, Menu, Segment } from 'semantic-ui-react';
 
 import WalletStatusBalances from './Status/Balances';
+import WalletStatusBalanceSummary from './Status/BalanceSummary';
 import WalletStatusResources from './Status/Resources';
 import WalletStatusStaked from './Status/Staked';
 import WalletStatusActions from './Status/Actions';
@@ -17,6 +18,16 @@ class WalletStatus extends Component<Props> {
   state = {
     activeItem: 'balances',
   };
+  
+  componentDidMount = () => {
+    const {
+      actions,
+      settings
+    } = this.props;
+
+    if (settings.account)
+      actions.getTable('eosio', settings.account, 'delband');
+  }
 
   handleItemClick = (e, { name }) => this.setState({ activeItem: name });
 
@@ -28,9 +39,12 @@ class WalletStatus extends Component<Props> {
       balances,
       blockExplorers,
       chain,
+      connection,
       globals,
+      rex,
       settings,
       t,
+      tables,
       validate
     } = this.props;
 
@@ -45,7 +59,28 @@ class WalletStatus extends Component<Props> {
     const account = accounts[settings.account] || {};
     const balance = balances[settings.account] || {};
 
-    const statsFetcher = new StatsFetcher(account, balance);
+    let delegations = tables &&
+      tables.eosio &&
+      tables.eosio[settings.account] &&
+      tables.eosio[settings.account].delband.rows;
+
+    if (!delegations && settings.account.indexOf('.') > 0) {
+      const prefix = settings.account.split('.')[0];
+      const suffix = settings.account.split('.')[1];
+      delegations = 
+        tables &&
+        tables.eosio &&
+        tables.eosio[prefix] &&
+        tables.eosio[prefix][suffix] &&
+        tables.eosio[prefix][suffix].delband &&
+        tables.eosio[prefix][suffix].delband.rows;
+    }
+
+    let rexbal = {}
+    if (rex && rex.rexbal)
+      rexbal = rex.rexbal;
+    
+    const statsFetcher = new StatsFetcher(account, balance, settings, delegations, rexbal);
 
     let activeTab = (
       <Segment stacked>
@@ -64,8 +99,10 @@ class WalletStatus extends Component<Props> {
               actions={actions}
               balances={balances}
               globals={globals}
+              rex={rex}
               statsFetcher={statsFetcher}
               settings={settings}
+              connection={connection}
             />
           );
           break;
@@ -75,6 +112,8 @@ class WalletStatus extends Component<Props> {
             <WalletStatusStaked
               account={account}
               statsFetcher={statsFetcher}
+              connection={connection}
+              settings={settings}
             />
           );
           break;
@@ -88,6 +127,7 @@ class WalletStatus extends Component<Props> {
               chain={chain}
               settings={settings}
               validate={validate}
+              connection={connection}
             />
           );
           break;
@@ -113,10 +153,21 @@ class WalletStatus extends Component<Props> {
     }
     return (
       <div>
+        <WalletStatusBalanceSummary
+          balances={balances}
+          globals={globals}
+          statsFetcher={statsFetcher}
+          connection={connection}
+          settings={settings}
+        />
+
+        {(settings.showResourcesInWallet === true) ?
         <WalletStatusResources
           displayResourcesAvailableSetting={settings.displayResourcesAvailable}
           statsFetcher={statsFetcher}
+          connection={connection}
         />
+        :false}
         <Segment>
           <Menu
             pointing
@@ -133,7 +184,7 @@ class WalletStatus extends Component<Props> {
             <Menu.Item
               name="staked"
               icon="power cord"
-              content={t('wallet_status_tab_staked')}
+              content={t('wallet_status_tab_staked', {tokenSymbol:settings.blockchain.tokenSymbol})}
               active={activeItem === 'staked'}
               onClick={this.handleItemClick}
             />

@@ -1,6 +1,7 @@
 // @flow
 import React, { Component } from 'react';
 
+import WalletPanelExchange from './Panel/Exchange';
 import WalletPanelLocked from './Panel/Locked';
 import WalletPanelUnlocked from './Panel/Unlocked';
 import WalletPanelWaiting from './Panel/Waiting';
@@ -27,14 +28,16 @@ export default class WalletPanel extends Component<Props> {
       balances,
       blockExplorers,
       globals,
+      isExchange,
       keys,
+      rex,
       settings,
       system,
       transaction,
       validate,
-      wallet
+      wallet,
+      connection
     } = this.props;
-
     let panel = false;
 
     if (settings.walletMode === 'wait') {
@@ -43,7 +46,6 @@ export default class WalletPanel extends Component<Props> {
       );
     }
 
-
     if (wallet.data) {
       panel = (
         <WalletPanelLocked
@@ -51,10 +53,28 @@ export default class WalletPanel extends Component<Props> {
           settings={settings}
           validate={validate}
           wallet={wallet}
+          connection={connection}
         />
       );
     }
-    if ((keys && keys.key) || settings.walletMode === 'watch') {
+    if ((keys && keys.key) && isExchange && isExchange === true) {
+      panel = (
+        <WalletPanelExchange
+          accounts={accounts}
+          actions={actions}
+          balances={balances}
+          blockExplorers={blockExplorers}
+          globals={globals}
+          rex={rex}
+          settings={settings}
+          system={system}
+          transaction={transaction}
+          validate={validate}
+          connection={connection}
+        />
+      );
+    }
+    else if ((keys && keys.key) || settings.walletMode === 'watch') {
       panel = (
         <WalletPanelUnlocked
           accounts={accounts}
@@ -62,10 +82,12 @@ export default class WalletPanel extends Component<Props> {
           balances={balances}
           blockExplorers={blockExplorers}
           globals={globals}
+          keys={keys}
           settings={settings}
           system={system}
           transaction={transaction}
           validate={validate}
+          connection={connection}
         />
       );
     }

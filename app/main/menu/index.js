@@ -71,10 +71,19 @@ export default class MenuBuilder {
     };
     const subMenuViewDev = {
       label: 'View',
-      submenu: [
+      submenu: (process.env.NODE_ENV === 'development') ? [
         { role: 'reload' },
         { role: 'forcereload' },
         { role: 'toggledevtools' },
+        { type: 'separator' },
+        { role: 'resetzoom' },
+        { role: 'zoomin' },
+        { role: 'zoomout' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ] : [
+        { role: 'reload' },
+        { role: 'forcereload' },
         { type: 'separator' },
         { role: 'resetzoom' },
         { role: 'zoomin' },
@@ -97,9 +106,9 @@ export default class MenuBuilder {
       submenu: [
         { label: 'Source Code (Github)', click() { shell.openExternal('https://github.com/Telos-Foundation/Sqrl'); } },
         { label: 'Report Bug (Github)', click() { shell.openExternal('https://github.com/Telos-Foundation/Sqrl/issues'); } },
-        { label: 'Releases (Github)', click() { shell.openExternal('https://github.com/Telos-Foundation/Sqrl/releases'); } },
-        { type: 'separator' },
-        { label: 'Check for Updates', click: (menuItem, browserWindow) => { checkForUpdates(menuItem, browserWindow); } }
+        { label: 'Web Site', click() { shell.openExternal('https://sqrlwallet.io'); } },
+        //{ type: 'separator' },
+        //{ label: 'Check for Updates', click: (menuItem, browserWindow) => { checkForUpdates(menuItem, browserWindow); } }
       ]
     };
 
@@ -157,21 +166,21 @@ export default class MenuBuilder {
         click: () => {
           this.mainWindow.setFullScreen(!this.mainWindow.isFullScreen());
         }
-      }, {
+      }/*, {
         label: 'Toggle &Developer Tools',
         accelerator: 'Alt+Ctrl+I',
         click: () => {
           this.mainWindow.toggleDevTools();
         }
-      }]
+      }*/]
     }, {
       label: 'Help',
       submenu: [
         { label: 'Source Code (Github)', click() { shell.openExternal('https://github.com/Telos-Foundation/Sqrl'); } },
         { label: 'Report Bug (Github)', click() { shell.openExternal('https://github.com/Telos-Foundation/Sqrl/issues'); } },
         { label: 'Releases (Github)', click() { shell.openExternal('https://github.com/Telos-Foundation/Sqrl/releases'); } },
-        { type: 'separator' },
-        { label: 'Check Updates...', click: (menuItem, browserWindow) => { checkForUpdates(menuItem, browserWindow); } }
+        //{ type: 'separator' },
+        //{ label: 'Check Updates...', click: (menuItem, browserWindow) => { checkForUpdates(menuItem, browserWindow); } }
       ]
     }];
 

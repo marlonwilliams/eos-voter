@@ -17,120 +17,136 @@ class WalletPanelFormStakeConfirming extends Component<Props> {
 
   render() {
     const {
+      activeTab,
       account,
+      accountName,
       balance,
-      decimalCpuAmount,
       cpuOriginal,
+      decimalCpuAmount,
       decimalNetAmount,
       netOriginal,
       onBack,
+      settings,
       t
     } = this.props;
 
-    const cpuAmount = parseFloat(decimalCpuAmount);
-    const netAmount = parseFloat(decimalNetAmount);
+    const unstaking = (activeTab == 'unstake');
 
-    const cpuDifference = cpuAmount - cpuOriginal;
-    const netDifference = netAmount - netOriginal;
+    const cpuAmount = decimalCpuAmount.toNumber();
+    const netAmount = decimalNetAmount.toNumber();
 
-    const lessThanOneEosStaked = (decimalNetAmount < 1 || decimalCpuAmount < 1);
+    const cpuDifference = unstaking ? 
+      cpuOriginal.toNumber() - cpuAmount : 
+      cpuAmount + cpuOriginal.toNumber();
+    const netDifference = unstaking ? 
+      netOriginal.toNumber() - netAmount: 
+      netAmount + netOriginal.toNumber();
 
-    const statsFetcher = new StatsFetcher(account, balance);
+    const lessThanOneEosStaked = (cpuAmount < 1 || netAmount < 1);
+
+    const statsFetcher = new StatsFetcher(account, balance, settings);
 
     const refundDate = statsFetcher.refundDate();
-
-    const unstaking = (cpuDifference < 0 || netDifference < 0);
 
     const unstakingWhenAmountBeingUnstaked = refundDate && unstaking;
 
     return (
-      <Segment padding="true" basic>
-        {(unstaking) ? (
+      <div>
+        {(accountName !== account.account_name)
+        ? (
           <Header textAlign="center">
-            {t('about_to_unstake_tokens')}
+            <p>{t('stake_confirming_header_one')} {accountName}</p>
           </Header>
         ) : ''}
-        <Segment.Group>
-          {(netDifference > 0) ? (
-            <Segment>
-              <Header textAlign="center">
-                <font color="green">
-                  <Icon name="wifi" />{t('about_to_stake_to_net')} {netDifference.toFixed(4)} TLOS
-                </font>
-                <Header.Subheader>
-                  ({t('you_will_have')} {netAmount.toFixed(4)} {t('eos_in_net_after')})
-                </Header.Subheader>
-              </Header>
-            </Segment>
+
+        <Segment padding="true" basic>
+          {(unstaking) ? (
+            <Header textAlign="center">
+              {t('about_to_unstake_tokens')}
+            </Header>
+          ) : ''}
+          <Segment.Group>
+            {(!unstaking) ? (
+              <Segment>
+                <Header textAlign="center">
+                  <font color="green">
+                    <Icon name="wifi" />{t('about_to_stake_to_net')} {netAmount.toFixed(settings.tokenPrecision)} {settings.blockchain.tokenSymbol}
+                  </font>
+                  <Header.Subheader>
+                    ({t('you_will_have')} {netDifference.toFixed(settings.tokenPrecision)} {t('eos_in_net_after', {tokenSymbol:settings.blockchain.tokenSymbol})})
+                  </Header.Subheader>
+                </Header>
+              </Segment>
+            ) : ''}
+
+            {(unstaking) ? (
+              <Segment>
+                <Header textAlign="center">
+                  <font color="red">
+                    <Icon name="wifi" />{t('about_to_unstake_from_net')} {(-netAmount).toFixed(settings.tokenPrecision)} {settings.blockchain.tokenSymbol}
+                  </font>
+                  <Header.Subheader>
+                    ({t('you_will_have')} {netDifference.toFixed(settings.tokenPrecision)} {t('eos_in_net_after', {tokenSymbol:settings.blockchain.tokenSymbol})})
+                  </Header.Subheader>
+                </Header>
+              </Segment>
+            ) : ''}
+
+            {(!unstaking) ? (
+              <Segment>
+                <Header textAlign="center">
+                  <font color="green">
+                    <Icon name="microchip" />{t('about_to_stake_to_cpu')} <b>{cpuAmount.toFixed(settings.tokenPrecision)} {settings.blockchain.tokenSymbol}</b>
+                  </font>
+                  <Header.Subheader>
+                    ({t('you_will_have')} {cpuDifference.toFixed(settings.tokenPrecision)} {t('eos_in_cpu_after', {tokenSymbol:settings.blockchain.tokenSymbol})})
+                  </Header.Subheader>
+                </Header>
+              </Segment>
+            ) : ''}
+
+            {(unstaking) ? (
+              <Segment>
+                <Header textAlign="center">
+                  <font color="red">
+                    <Icon name="microchip" />{t('about_to_unstake_from_cpu')} <b>{(-cpuAmount).toFixed(settings.tokenPrecision)} {settings.blockchain.tokenSymbol}</b>
+                  </font>
+                  <Header.Subheader>
+                    ({t('you_will_have')} {cpuDifference.toFixed(settings.tokenPrecision)} {t('eos_in_cpu_after', {tokenSymbol:settings.blockchain.tokenSymbol})})
+                  </Header.Subheader>
+                </Header>
+              </Segment>
+            ) : ''}
+          </Segment.Group>
+
+          {(accountName === account.account_name && lessThanOneEosStaked) ? (
+            <Message warning="true">{t('will_have_less_than_one_eos_staked', {tokenSymbol:settings.blockchain.tokenSymbol})}</Message>
           ) : ''}
 
-          {(netDifference < 0) ? (
-            <Segment>
-              <Header textAlign="center">
-                <font color="red">
-                  <Icon name="wifi" />{t('about_to_unstake_from_net')} {(-netDifference).toFixed(4)} TLOS
-                </font>
-                <Header.Subheader>
-                  ({t('you_will_have')} {netAmount.toFixed(4)} {t('eos_in_net_after')})
-                </Header.Subheader>
-              </Header>
-            </Segment>
+          {(unstakingWhenAmountBeingUnstaked) ? (
+            <Message
+              icon="warning sign"
+              warning="true"
+            >
+              {t('have_already_unstaked')} {statsFetcher.totalBeingUnstaked().toFixed(settings.tokenPrecision)} {settings.blockchain.tokenSymbol} {t('unstaking_will_be_reset')}
+            </Message>
           ) : ''}
 
-          {(cpuDifference > 0) ? (
-            <Segment>
-              <Header textAlign="center">
-                <font color="green">
-                  <Icon name="microchip" />{t('about_to_stake_to_cpu')} <b>{cpuDifference.toFixed(4)} TLOS</b>
-                </font>
-                <Header.Subheader>
-                  ({t('you_will_have')} {cpuAmount.toFixed(4)} {t('eos_in_cpu_after')})
-                </Header.Subheader>
-              </Header>
-            </Segment>
-          ) : ''}
-
-          {(cpuDifference < 0) ? (
-            <Segment>
-              <Header textAlign="center">
-                <font color="red">
-                  <Icon name="microchip" />{t('about_to_unstake_from_cpu')} <b>{(-cpuDifference).toFixed(4)} TLOS</b>
-                </font>
-                <Header.Subheader>
-                  ({t('you_will_have')} {cpuAmount.toFixed(4)} {t('eos_in_cpu_after')})
-                </Header.Subheader>
-              </Header>
-            </Segment>
-          ) : ''}
-        </Segment.Group>
-
-        {(lessThanOneEosStaked) ? (
-          <Message warning="true">{t('will_have_less_than_one_eos_staked')}</Message>
-        ) : ''}
-
-        {(unstakingWhenAmountBeingUnstaked) ? (
-          <Message
-            icon="warning sign"
-            warning="true"
+          <Divider />
+          <Button
+            onClick={onBack}
           >
-            {t('have_already_unstaked')} {statsFetcher.totalBeingUnstaked().toFixed(4)} TLOS {t('unstaking_will_be_reset')}
-          </Message>
-        ) : ''}
-
-        <Divider />
-        <Button
-          onClick={onBack}
-        >
-          <Icon name="arrow left" /> {t('back')}
-        </Button>
-        <Button
-          color="blue"
-          floated="right"
-          onClick={this.onConfirm}
-        >
-          <Icon name="check" /> {t('confirm_stake')}
-        </Button>
-      </Segment>
+            <Icon name="arrow left" /> {t('back')}
+          </Button>
+          <Button
+            color="blue"
+            floated="right"
+            onClick={this.onConfirm}
+          >
+            <Icon name="check" /> {t('confirm_stake')}
+          </Button>
+        </Segment>  
+      </div>
     );
   }
 }

@@ -12,11 +12,14 @@ class ToolsModalPermissionAuth extends Component<Props> {
       auth,
       blockExplorers,
       button,
+      contractActions,
+      linkAuthHistory,
       open,
       pubkey,
       settings,
       system,
-      t
+      t,
+      connection
     } = this.props;
     return (
       <GlobalTransactionModal
@@ -28,8 +31,11 @@ class ToolsModalPermissionAuth extends Component<Props> {
           <ToolsFormPermissionsAuth
             actions={actions}
             auth={auth}
+            contractActions={contractActions}
+            linkAuthHistory={linkAuthHistory}
             pubkey={pubkey}
             settings={settings}
+            connection={connection}
           />
         )}
         icon="share square"

@@ -26,16 +26,17 @@ class ToolsFormCreateAccount extends Component<Props> {
       delegatedBw,
       delegatedCpu,
       ownerKey,
-      ramAmount
+      ramAmount,
+      settings
     } = props;
-
+    
     this.state = {
       accountName,
       activeKey,
       confirming: false,
       delegatedBw,
       delegatedCpu,
-      EOSbalance: (balance && balance.TLOS) ? balance.TLOS : 0,
+      EOSbalance: (balance && balance[settings.blockchain.tokenSymbol]) ? balance[settings.blockchain.tokenSymbol] : 0,
       formErrors: {},
       ownerKey,
       ramAmount,
@@ -182,8 +183,8 @@ class ToolsFormCreateAccount extends Component<Props> {
       formErrors[attribute] = null;
     });
 
-    if (Number(ramAmount) < 4000) {
-      formErrors.ramAmount = 'ram_under_minimum_for_new_account';
+    if (Number(ramAmount) < 2600) {
+      formErrors.ramAmount = 'error_ram_under_minimum_of_2600_for_new_account';
       submitDisabled = true;
     }
 
@@ -201,9 +202,9 @@ class ToolsFormCreateAccount extends Component<Props> {
     const decimalDelegatedBw = Decimal(delegatedBw.split(' ')[0]);
     const decimalDelegatedCpu = Decimal(delegatedCpu.split(' ')[0]);
 
-    const decimalDelegatedResources = decimalDelegatedBw.plus(decimalDelegatedCpu);
+    const decimalDelegatedResources = decimalDelegatedBw ? decimalDelegatedBw.plus(decimalDelegatedCpu) : 0;
 
-    if (ramPrice.plus(decimalDelegatedResources).greaterThan(decimalBalance)) {
+    if (ramPrice && ramPrice.plus(decimalDelegatedResources).greaterThan(decimalBalance)) {
       if (delegatedBw > 1) {
         formErrors.delegatedBw = 'not_enough_balance';
       } else if (delegatedCpu > 1) {
@@ -262,8 +263,10 @@ class ToolsFormCreateAccount extends Component<Props> {
     const {
       hideCancel,
       onClose,
+      settings,
       system,
-      t
+      t,
+      connection
     } = this.props;
 
     const {
@@ -345,12 +348,16 @@ class ToolsFormCreateAccount extends Component<Props> {
                   label={t('tools_form_create_account_owner_key')}
                   name="ownerKey"
                   onChange={this.onChange}
+                  connection={connection}
+                  settings={settings}
                 />
                 <GlobalFormFieldKeyPublic
                   defaultValue={activeKey || ''}
                   label={t('tools_form_create_account_active_key')}
                   name="activeKey"
                   onChange={this.onChange}
+                  connection={connection}
+                  settings={settings}
                 />
                 <GlobalFormFieldAccount
                   contacts={contacts}
@@ -367,15 +374,17 @@ class ToolsFormCreateAccount extends Component<Props> {
                 />
                 <GlobalFormFieldToken
                   defaultValue={delegatedBw && delegatedBw.split(' ')[0]}
-                  label={t('tools_form_create_account_delegated_bw')}
+                  label={t('tools_form_create_account_delegated_bw', {tokenSymbol:settings.blockchain.tokenSymbol})}
                   name="delegatedBw"
                   onChange={this.onChange}
+                  settings={settings}
                 />
                 <GlobalFormFieldToken
                   defaultValue={delegatedCpu && delegatedCpu.split(' ')[0]}
-                  label={t('tools_form_create_account_delegated_cpu')}
+                  label={t('tools_form_create_account_delegated_cpu', {tokenSymbol:settings.blockchain.tokenSymbol})}
                   name="delegatedCpu"
                   onChange={this.onChange}
+                  settings={settings}
                 />
                 <Form.Checkbox
                   checked={transferTokens}
@@ -385,7 +394,7 @@ class ToolsFormCreateAccount extends Component<Props> {
                 />
                 {(ramPrice && !formErrors.ramAmount) ? (
                   <h4 style={{ margin: '30px' }}>
-                    {`${t('tools_form_create_account_ram_price_estimate')} ${ramPrice.toFixed(4)} TLOS.`}
+                    {`${t('tools_form_create_account_ram_price_estimate')} ${ramPrice.toFixed(settings.tokenPrecision)} ${settings.blockchain.tokenSymbol}.`}
                   </h4>
                 ) : ''}
                 <FormMessageError
@@ -420,7 +429,7 @@ class ToolsFormCreateAccount extends Component<Props> {
                 {(shouldShowDelegatedResourceWarning)
                   ? (
                     <Message
-                      content={t('tools_form_create_account_delegated_resources_warning')}
+                      content={t('tools_form_create_account_delegated_resources_warning', {tokenSymbol:settings.blockchain.tokenSymbol})}
                       icon="info circle"
                       warning
                     />
@@ -467,9 +476,11 @@ class ToolsFormCreateAccount extends Component<Props> {
               onConfirm={this.onConfirm}
               ownerKey={ownerKey}
               ramAmount={ramAmount}
+              settings={settings}
               transferTokens={transferTokens}
               totalCost={ramPrice}
               totalDelegated={totalDelegated}
+              connection={connection}
             />
           ) : ''}
       </Segment>

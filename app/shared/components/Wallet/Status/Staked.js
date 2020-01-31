@@ -4,13 +4,14 @@ import { translate } from 'react-i18next';
 
 import { Segment, Table } from 'semantic-ui-react';
 
-const prettyBytes = require('pretty-bytes');
+const prettyBytes = require('bytes');
 
 class WalletStatusStaked extends Component<Props> {
   render() {
     const {
       account,
       statsFetcher,
+      settings,
       t
     } = this.props;
 
@@ -18,11 +19,16 @@ class WalletStatusStaked extends Component<Props> {
       cpu_limit,
       net_limit,
       ram_quota,
-      ram_usage,
-      self_delegated_bandwidth,
-      total_resources
+      ram_usage
     } = account;
-
+    const no_delegation = {
+      cpu_weight: '0.'.padEnd(settings.tokenPrecision + 2, '0') + ' ' + settings.blockchain.tokenSymbol,
+      net_weight: '0.'.padEnd(settings.tokenPrecision + 2, '0') + ' ' + settings.blockchain.tokenSymbol
+    };
+    const self_delegated_bandwidth = account.self_delegated_bandwidth ? 
+      account.self_delegated_bandwidth : no_delegation;
+    const total_resources = account.total_resources ? 
+      account.total_resources : no_delegation;
     const {
       cpuWeight,
       netWeight
@@ -70,7 +76,7 @@ class WalletStatusStaked extends Component<Props> {
                         {t('wallet_status_resources_usage')}
                       </Table.Cell>
                       <Table.Cell>
-                        {(cpu_limit.used / 1000000).toFixed(4)} sec / {(cpu_limit.max / 1000000).toFixed(4)} sec
+                        {(cpu_limit.used / 1000000).toFixed(settings.tokenPrecision)} sec / {(cpu_limit.max / 1000000).toFixed(settings.tokenPrecision)} sec
                       </Table.Cell>
                     </Table.Row>
                   </Table.Body>
@@ -112,6 +118,24 @@ class WalletStatusStaked extends Component<Props> {
                       </Table.Cell>
                       <Table.Cell>
                         {prettyBytes(parseInt(net_limit.used))} / {prettyBytes(parseInt(net_limit.max))}
+                      </Table.Cell>
+                    </Table.Row>
+                  </Table.Body>
+                </Table>
+              </Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>{t('wallet_status_resources_ram_available_title')}</Table.Cell>
+              <Table.Cell>
+              <Table compact>
+                  <Table.Body>
+                    <Table.Row>
+                      <Table.Cell collapsing>
+                        {t('wallet_status_resources_usage')}
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                      </Table.Cell>
+                      <Table.Cell>
+                        {prettyBytes(parseInt(ram_usage))} / {prettyBytes(parseInt(ram_quota))}
                       </Table.Cell>
                     </Table.Row>
                   </Table.Body>

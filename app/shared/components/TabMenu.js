@@ -4,6 +4,7 @@ import { Menu } from 'semantic-ui-react';
 import { translate } from 'react-i18next';
 
 import GlobalAccountDropdown from '../containers/Global/Account/Dropdown';
+import GlobalBlockchainDropdown from '../containers/Global/Account/Blockchain';
 import WalletLanguage from './Wallet/Language';
 import WalletLockState from './Wallet/LockState';
 import WalletMode from './Wallet/Mode';
@@ -16,18 +17,33 @@ class TabMenu extends Component<Props> {
       activeItem,
       handleItemClick,
       locked,
+      rex,
       settings,
       validate,
       wallet,
       t
     } = this.props;
+    const rexTabName = settings.blockchain.tokenSymbol == 'TLOS' ? 'T-REX' : 'REX';
     return (
       <Menu
         attached
         inverted
         size="large"
       >
+        <GlobalBlockchainDropdown />
         <GlobalAccountDropdown />
+        {(settings.account || settings.walletMode === 'wait')
+          ? (
+            <Menu.Item
+              name="wallet"
+              icon="protect"
+              content={t('wallet')}
+              active={activeItem === 'wallet'}
+              onClick={handleItemClick}
+            />
+          )
+          : false
+        }
         {(settings.walletMode !== 'cold')
           ? (
             <Menu.Item
@@ -40,13 +56,13 @@ class TabMenu extends Component<Props> {
           )
           : false
         }
-        {(settings.account || settings.walletMode === 'wait')
+        {( (rex && rex.rexpool) && (settings.account || settings.walletMode === 'wait'))
           ? (
             <Menu.Item
-              name="wallet"
-              icon="protect"
-              content={t('wallet')}
-              active={activeItem === 'wallet'}
+              name="exchange"
+              icon="exchange"
+              content={rexTabName}
+              active={activeItem === 'exchange'}
               onClick={handleItemClick}
             />
           )
@@ -86,7 +102,7 @@ class TabMenu extends Component<Props> {
             active={activeItem === 'about'}
             onClick={handleItemClick}
           >
-            <img alt="Telos Sqrl" src={logo} />
+            <img alt="Sqrl" src={logo} />
           </Menu.Item>
         </Menu.Menu>
       </Menu>

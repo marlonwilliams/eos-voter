@@ -7,22 +7,25 @@ class WalletStatusActionsTableRowDelegatebw extends Component<Props> {
   render() {
     const {
       action,
-      t
+      t,
+      settings
     } = this.props;
     const {
       data
     } = action.action_trace.act;
 
-    const stakeToCpuDescription = (data.stake_cpu_quantity !== '0.0000 TLOS') ? (
+    const zeroBalance = '0.'.padEnd(settings.tokenPrecision + 2, '0') + ' ' + settings.blockchain.tokenSymbol;
+
+    const stakeToCpuDescription = (data.stake_cpu_quantity !== zeroBalance) ? (
       `${data.stake_cpu_quantity} ${t('actions_table_row_delegatebw_text_two')}`
     ) : '';
 
-    const stakeToNetDescription = (data.stake_net_quantity !== '0.0000 TLOS') ? (
+    const stakeToNetDescription = (data.stake_net_quantity !== zeroBalance) ? (
       `${data.stake_net_quantity} ${t('actions_table_row_delegatebw_text_three')}`
     ) : '';
 
     const stakeConnector =
-      (data.stake_cpu_quantity !== '0.0000 TLOS' && data.stake_net_quantity !== '0.0000 TLOS') ? (
+      (data.stake_cpu_quantity !== zeroBalance && data.stake_net_quantity !== zeroBalance) ? (
         ` ${t('actions_table_row_text_and')} `
       ) : '';
 

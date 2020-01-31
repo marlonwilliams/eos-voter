@@ -21,7 +21,13 @@ class WalletStatusActionsTable extends Component<Props> {
     if (!loading) {
       let fullResults = actionHistory.list.slice(0, amount);
 
-      if (settings.filterSpamTransfersUnder !== 0.0000) {
+      // de dupe history actions by transaction/action name combo
+      fullResults = fullResults.map(e => e.action_trace.trx_id + "." + e.action_trace.act.name)
+        .map((e, i, final) => final.indexOf(e) === i && i)
+        .filter(e => fullResults[e]).map(e => fullResults[e]);
+
+      const filterSpamTransfersUnder = settings.filterSpamTransfersUnder || '0.'.padEnd(settings.tokenPrecision + 2, '0');
+      if (filterSpamTransfersUnder !== '0.'.padEnd(settings.tokenPrecision + 2, '0')) {
         fullResults = fullResults.filter(action => {
           const {
             act
@@ -36,7 +42,7 @@ class WalletStatusActionsTable extends Component<Props> {
             quantity
           } = act.data;
 
-          if (Number(quantity) > settings.filterSpamTransfersUnder || from === settings.account) {
+          if (Number(quantity.split(' ')[0]) > filterSpamTransfersUnder || from === settings.account) {
             return true;
           }
 

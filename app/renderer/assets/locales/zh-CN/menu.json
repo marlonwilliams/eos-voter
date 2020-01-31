@@ -1,5 +1,6 @@
 {
-  "producer_voting": "生产者投票",
+  "exchange": "Exchange",
+  "producer_voting": "Governance",
   "wallet": "钱包",
   "tools": "Tools"
 }

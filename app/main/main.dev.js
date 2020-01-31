@@ -1,6 +1,6 @@
 /* eslint global-require: 0, flowtype-errors/show-errors: 0 */
 
-import { app, crashReporter } from 'electron';
+import { app, crashReporter, ipcMain, remote } from 'electron';
 import { configureStore } from '../shared/store/main/configureStore';
 import { createInterface } from './basic';
 
@@ -40,8 +40,8 @@ console.log = (...args) => {
 log.info('app: initializing');
 
 if (process.env.NODE_ENV === 'production') {
-  const sourceMapSupport = require('source-map-support');
-  sourceMapSupport.install();
+  //const sourceMapSupport = require('source-map-support');
+  //sourceMapSupport.install();
 }
 
 if (process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true') {
@@ -65,6 +65,7 @@ crashReporter.start({
 // main exceptions to electron-log
 app.on('uncaughtException', (error) => {
   log.error(error);
+  app.exit(1);
 });
 
 // main start
@@ -84,8 +85,8 @@ app.on('ready', async () => {
 });
 
 // debug event logging
-app.on('window-all-closed', () => {
-  log.info('app: window-all-closed');
+app.on('window-all-closed', (event) => {
+  log.info('app: window-all-closed suspended');
   app.quit();
 });
 app.on('will-finish-launching', () => { log.info('app: will-finish-launching'); });
@@ -93,9 +94,17 @@ app.on('before-quit', () => { log.info('app: before-quit'); });
 app.on('will-quit', () => { log.info('app: will-quit'); });
 app.on('quit', () => { log.info('app: quit'); });
 
+ipcMain.on('bringToFront', (event) => {
+  event.sender.getOwnerBrowserWindow().show();
+});
+
+ipcMain.on('sendToBack', (event) => {
+  event.sender.getOwnerBrowserWindow().blur();
+});
+
 const initManager = (route = '/', closable = true) => {
   ui = createInterface(resourcePath, route, closable, store);
-  ui.on('close', () => {
+  ui.on('close', (event) => {
     ui = null;
   });
 };
@@ -107,3 +116,4 @@ const showManager = () => {
 };
 
 global.showManager = showManager;
+

@@ -2,27 +2,47 @@ import * as types from './types';
 
 import eos from './helpers/eos';
 import { getCurrencyBalance } from './accounts';
+import { payforcpunet } from './helpers/eos';
 
-export function transfer(from, to, quantity, memo, symbol = 'TLOS') {
+export function transfer(from, to, quantity, memo, symbol) {
   return (dispatch: () => void, getState) => {
     const {
       balances,
-      connection
+      connection,
+      settings
     } = getState();
     dispatch({
       type: types.SYSTEM_TRANSFER_PENDING
     });
     try {
+      symbol = symbol ? symbol : settings.blockchain.tokenSymbol;
       const contracts = balances.__contracts;
       const account = contracts[symbol].contract;
-      return eos(connection, true).transaction(account, contract => {
-        contract.transfer(
-          from,
-          to,
-          quantity,
-          memo
-        );
-      }, {
+      let actions = [
+        {
+          account: account,
+          name: 'transfer',
+          authorization: [{
+            actor: from,
+            permission: 'active',
+          }],
+          data: {
+            from,
+            to,
+            quantity,
+            memo,
+          },
+        }
+      ];
+  
+      const payforaction = payforcpunet(from, getState());
+      if (payforaction) actions = payforaction.concat(actions);
+  
+      return eos(connection, true, payforaction!==null).transaction(
+        {
+          actions
+        }, 
+       {
         broadcast: connection.broadcast,
         expireInSeconds: connection.expireInSeconds,
         sign: connection.sign

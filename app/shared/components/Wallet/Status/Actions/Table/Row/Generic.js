@@ -31,7 +31,7 @@ class WalletStatusActionsTableRowGeneric extends Component<Props> {
             <ExplorerLink
               blockExplorers={blockExplorers}
               content={t('actions_link_content')}
-              linkData={action.trx_id}
+              linkData={action.action_trace.trx_id}
               linkType="txid"
               settings={settings}
             />
@@ -50,7 +50,11 @@ class WalletStatusActionsTableRowGeneric extends Component<Props> {
           iconStyle="square"
           name={null}
           src={act.data}
-          style={{ padding: '1em' }}
+          style={{
+            padding: '1em',
+            maxWidth: '800px',
+            overflow: 'hidden'
+          }}
           theme="harmonic"
         />
       </React.Fragment>
